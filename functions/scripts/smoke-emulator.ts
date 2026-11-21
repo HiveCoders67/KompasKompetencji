@@ -88,7 +88,8 @@ check('HR lists tracking', all.size === 5, String(all.size));
 
 await as('marta.zielinska@demo.kompas.local');
 const ai = await call('askFormalAssistant', { question: 'Ile dni na sprzeciw?' }).then(() => 'ok', (e) => `${e.code}: ${e.message}`);
-check('assistant without GEMINI_API_KEY fails gracefully', ai !== 'ok' && !ai.includes('internal'), ai);
+// with a key the assistant answers; without one it must fail with a readable error, never "internal"
+check('assistant answers or fails gracefully', ai === 'ok' || !ai.includes('internal'), ai);
 
 console.log(failures ? `\n${failures} FAILED` : '\nALL OK');
 process.exit(failures ? 1 : 0);

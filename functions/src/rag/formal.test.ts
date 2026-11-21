@@ -91,3 +91,41 @@ describe('Formal Assistant — grounding and citation validation', () => {
     expect(llm.prompts).toHaveLength(0);
   });
 });
+
+describe('Formal Assistant — citation details', () => {
+  it('quote check ignores only whitespace (PDF artifacts), not letters', async () => {
+    const { quoteInText } = await import('./formal');
+    const text = 'osoby zwolnione ze służby przygotowawczej muszą p rzystąpić do egzaminu';
+    expect(quoteInText('muszą przystąpić do egzaminu', text)).toBe(true);
+    expect(quoteInText('muszą przystąpić do egzaminu…', text)).toBe(true);
+    expect(quoteInText('nie muszą przystąpić do egzaminu', text)).toBe(false);
+    expect(quoteInText('muszą przystąpić do egzaminów', text)).toBe(false);
+    expect(quoteInText('…', text)).toBe(false);
+  });
+
+  it('a citation without unit takes the unit from the retrieved fragment', async () => {
+    const llm = fake((p) => ({
+      answer: '7 dni, do dyrektora generalnego urzędu.',
+      citations: [{ fragment: fragmentOf(p, 'art. 83 ust. 1'), quote: 'w terminie 7 dni od dnia zapoznania się z oceną' }],
+    }));
+    const r = await answerFormal(llm, Q, ctx);
+    expect(r.refused).toBe(false);
+    expect(r.citations[0]).toMatchObject({ source: 'USTAWA', unit: 'art. 83 ust. 1' });
+  });
+
+  it('asks the model for JSON and labels the fragment header fields', async () => {
+    let json: boolean | undefined;
+    let user = '';
+    const llm: LlmProvider = {
+      name: 'spy',
+      async generate(req) {
+        json = req.json;
+        user = req.user;
+        return '{"answer":"","insufficient":true}';
+      },
+    };
+    await answerFormal(llm, Q, ctx);
+    expect(json).toBe(true);
+    expect(user).toMatch(/\[F1\] źródło: .+ \| jednostka: .+ \| strona: /);
+  });
+});

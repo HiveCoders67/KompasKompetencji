@@ -110,6 +110,7 @@ Zwróć WYŁĄCZNIE JSON: {"criteria": [{"code": "KOD", "reason": "uzasadnienie"
     user,
     temperature: 0.2,
     maxOutputTokens: 800,
+    json: true,
   });
   const parsed = parseJsonObject<{ criteria?: { code?: string; reason?: string }[] }>(raw);
   const allowed = new Map(catalogue.map((c) => [c.code, c]));

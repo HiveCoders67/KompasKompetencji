@@ -180,11 +180,32 @@ export const suggestCriteriaFn = call<
 >('suggestCriteria');
 export const resetDemoFn = call<Record<string, never>, { ok: boolean }>('resetDemoData');
 
-/** User-facing message for callable errors (quota → the exact message from docs/03 § 1). */
+/** Fallbacks for errors raised by the SDK itself (no HttpsError message from our functions). */
+const CALLABLE_FALLBACK: Record<string, string> = {
+  'functions/unauthenticated': 'Sesja wygasła. Zaloguj się ponownie.',
+  'functions/permission-denied': 'Brak uprawnień do wykonania tej operacji.',
+  'functions/deadline-exceeded': 'Serwer nie odpowiedział na czas. Spróbuj ponownie.',
+  'functions/unavailable': 'Usługa jest chwilowo niedostępna. Spróbuj ponownie za chwilę.',
+  'functions/not-found': 'Nie znaleziono funkcji serwera — sprawdź, czy Cloud Functions są wdrożone (lub uruchomione w emulatorze).',
+  'functions/cancelled': 'Operacja została przerwana.',
+};
+
+/**
+ * User-facing message for callable errors. Our functions throw HttpsError with Polish messages — those are shown as is;
+ * SDK-generated errors carry only the code as message (e.g. "internal"), so they get a fallback text.
+ * Quota → the exact message from docs/03 § 1.
+ */
 export function callableError(e: unknown): string {
-  const err = e as { code?: string; message?: string };
-  if (err.code === 'functions/resource-exhausted') return 'Wyczerpano dostępne zasoby asystenta AI. Spróbuj ponownie później.';
-  if (err.code === 'functions/internal' || !err.message) return 'Wystąpił błąd serwera. Spróbuj ponownie.';
+  const err = (e ?? {}) as { code?: string; message?: string };
+  const code = err.code ?? '';
+  if (code === 'functions/resource-exhausted') return 'Wyczerpano dostępne zasoby asystenta AI. Spróbuj ponownie później.';
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return 'Brak połączenia z internetem. Sprawdź połączenie i spróbuj ponownie.';
   // the SDK may append the HTTP status („… [503]”) — not meaningful for the user
-  return err.message.replace(/\s*\[\d{3}\]\s*$/, '');
+  const message = (err.message?.trim() ?? '').replace(/\s*\[\d{3}\]$/, '');
+  const sdkGenerated = !message || message.toLowerCase() === code.replace(/^functions\//, '').replace(/-/g, ' ') || message.toLowerCase() === code.replace(/^functions\//, '');
+  if (!sdkGenerated) return message;
+  if (CALLABLE_FALLBACK[code]) return CALLABLE_FALLBACK[code];
+  // `internal` is also what the SDK reports when the server cannot be reached at all
+  if (code === 'functions/internal') return 'Wystąpił błąd serwera lub brak połączenia z serwerem. Spróbuj ponownie.';
+  return message || 'Wystąpił nieoczekiwany błąd. Spróbuj ponownie.';
 }

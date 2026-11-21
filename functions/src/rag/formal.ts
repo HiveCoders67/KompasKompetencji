@@ -44,8 +44,13 @@ const SYSTEM = `Jesteś Asystentem Formalnym Oceny w służbie cywilnej. Odpowia
 ZASADY (bezwzględne):
 1. Odpowiadasz WYŁĄCZNIE na podstawie fragmentów oznaczonych [F1], [F2]… podanych w wiadomości. Nie korzystasz z własnej wiedzy, nie zgadujesz i nie dopowiadasz.
 2. Jeżeli fragmenty nie zawierają odpowiedzi na pytanie, ustaw "insufficient": true i nie odpowiadaj merytorycznie. Pytania potoczne odnoś do pojęć z przepisów (np. „ocena roczna” → ocena okresowa, „L4” → usprawiedliwiona nieobecność) i zaznacz to w odpowiedzi jednym zdaniem — nie odmawiaj tylko z powodu innego słownictwa.
-3. Każde twierdzenie merytoryczne musi być poparte cytatem. Cytat wskazuje identyfikator fragmentu, jego jednostkę redakcyjną i stronę DOKŁADNIE tak, jak podano w nagłówku fragmentu (możesz doprecyzować punkt, np. "§ 11 ust. 1 pkt 4"), oraz krótki dosłowny wyjątek (do 200 znaków) skopiowany z treści fragmentu.
-4. Nie wystawiasz ocen pracownikom i nie podejmujesz decyzji kadrowych — wyjaśniasz przepisy. Przy pytaniach o konkretny przypadek zastosuj przepis do podanych faktów i zacznij od jednoznacznej odpowiedzi (np. „Nie — ocena jest negatywna, ponieważ…”).
+3. Każde twierdzenie merytoryczne musi być poparte cytatem. Każdy fragment ma nagłówek: [Fn] źródło: … | jednostka: … | strona: … | tytuł sekcji: …. Dla każdego cytatu podaj:
+   - "fragment": identyfikator fragmentu, np. "F2";
+   - "unit": wartość pola „jednostka” z nagłówka TEGO fragmentu, przepisana znak w znak (np. "rozdz. 5.3", "art. 36 ust. 8", "§ 10 ust. 1"). Nie wpisuj tytułu sekcji ani przepisu przywołanego w treści fragmentu — jeśli fragment poradnika z jednostką "rozdz. 4.1" omawia § 4 ust. 1, to "unit" = "rozdz. 4.1". Tylko przy artykule lub paragrafie możesz doprecyzować punkt, np. "§ 11 ust. 1 pkt 4";
+   - "page": wartość pola „strona” z nagłówka tego fragmentu;
+   - "quote": od 5 do 25 kolejnych słów przepisanych z treści tego fragmentu DOSŁOWNIE — bez zmiany odmiany i szyku, bez skrótów, bez wielokropków, bez łączenia kilku zdań, z zachowaniem ewentualnych literówek.
+   Jeśli we fragmentach jest zarówno przepis (ustawa, rozporządzenie), jak i poradnik, cytuj przede wszystkim przepis.
+4. Nie wystawiasz ocen pracownikom i nie podejmujesz decyzji kadrowych — wyjaśniasz przepisy. Przy pytaniach o konkretny przypadek zastosuj przepis do podanych faktów (liczb, okresów, dat) i podaj konkretny skutek dla tego przypadku, a nie tylko ogólną regułę (np. „Tak — termin przedłuża się o 60 dni, bo nieobecność trwała dłużej niż miesiąc”). Zacznij od jednoznacznej odpowiedzi; wynik oceny podaj w mianowniku, tak jak w przepisach — „Ocena pozytywna — …” albo „Ocena negatywna — …”. Jeśli wynik zależy od obliczeń (średnia ocen, liczba dni, przesunięcie terminu), pokaż je z liczbami z pytania.
 5. Kontekst ekranu służy tylko do dopasowania odpowiedzi (np. ścieżka pierwszej oceny vs oceny okresowej), nie jest źródłem.
 6. Pisz po polsku, rzeczowo, maksymalnie 8 zdań. Bez nagłówków markdown.
 
@@ -88,7 +93,7 @@ export function describeContext(ctx: ScreenContext | null): string {
 }
 
 const header = (c: Chunk) =>
-  `${SOURCE_TITLES[c.source]} | jednostka: ${c.unit ?? '—'} | strona: ${c.page ?? '—'}${c.heading ? ` | ${c.heading}` : ''}`;
+  `źródło: ${SOURCE_TITLES[c.source]} | jednostka: ${c.unit ?? '—'} | strona: ${c.page ?? '—'}${c.heading ? ` | tytuł sekcji: ${c.heading}` : ''}`;
 
 export function buildPrompt(question: string, hits: Hit[], ctx: ScreenContext | null): string {
   const fragments = hits.map((h, i) => `[F${i + 1}] ${header(h.chunk)}\n${h.chunk.text}`).join('\n\n');
@@ -190,6 +195,9 @@ function findRun(hay: string[], needle: string[], from: number): number {
   return -1;
 }
 
+/** Alias kept for callers/tests using the previous name. */
+export const quoteInText = (quote: string, text: string): boolean => quoteInFragment(quote, text);
+
 /** A cited unit matches the fragment if equal or more specific („§ 11 ust. 1 pkt 4” ⊂ „§ 11 ust. 1”). */
 function unitMatches(cited: string | null | undefined, actual: string | null): boolean {
   if (!actual) return cited === null || cited === undefined || cited === '' || cited === '—';
@@ -237,7 +245,7 @@ export async function answerFormal(llm: LlmProvider, question: string, ctx: Scre
   const refuse = (reason: string): FormalAnswer => ({ content: REFUSAL, refused: true, citations: [], debug: { fragments, reason } });
   if (!hits.length || Math.max(...hits.map((h) => h.coverage)) < MIN_COVERAGE) return refuse('poniżej progu trafności');
 
-  const raw = await llm.generate({ system: SYSTEM, user: buildPrompt(question, hits, ctx), temperature: 0.1, jsonSchema: ANSWER_SCHEMA });
+  const raw = await llm.generate({ system: SYSTEM, user: buildPrompt(question, hits, ctx), temperature: 0.1, json: true, jsonSchema: ANSWER_SCHEMA });
   const parsed = parseJsonObject<ModelAnswer>(raw);
   if (!parsed || typeof parsed.answer !== 'string') return refuse('niepoprawny JSON modelu');
   if (parsed.insufficient) return refuse('model: brak informacji we fragmentach');

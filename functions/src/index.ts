@@ -23,14 +23,35 @@ import {
 import { db, fromSnap, toData } from './admin';
 import { clearDemoOffice, seedDemo } from './demoSeed';
 import { interviewAssistant, suggestAdditionalCriteria, type InterviewTask } from './interview';
-import { DEFAULT_MODEL, GeminiProvider, LlmQuotaError, QUOTA_MESSAGE, type LlmProvider } from './llm';
+import {
+  CONFIG_MESSAGE,
+  DEFAULT_MODEL,
+  DEFAULT_THINKING_LEVEL,
+  GeminiProvider,
+  parseThinkingLevel,
+  LlmConfigError,
+  LlmQuotaError,
+  LlmTimeoutError,
+  QUOTA_MESSAGE,
+  TIMEOUT_MESSAGE,
+  UNAVAILABLE_MESSAGE,
+  type LlmProvider,
+} from './llm';
 import { answerFormal } from './rag/formal';
 
 setGlobalOptions({ region: 'europe-central2', maxInstances: 5 });
 
 const GEMINI_API_KEY = defineSecret('GEMINI_API_KEY');
-const LLM_MODEL = defineString('LLM_MODEL', { default: DEFAULT_MODEL });
-const llm = (): LlmProvider => new GeminiProvider(GEMINI_API_KEY.value(), LLM_MODEL.value());
+const GEMINI_MODEL = defineString('GEMINI_MODEL', { default: DEFAULT_MODEL });
+/** "minimal" (default) = several times faster; "default" = the model's own thinking. */
+const GEMINI_THINKING_LEVEL = defineString('GEMINI_THINKING_LEVEL', { default: DEFAULT_THINKING_LEVEL });
+/** `budgetMs` must stay below the function's timeoutSeconds (retries included). */
+const llm = (budgetMs: number): LlmProvider =>
+  new GeminiProvider(GEMINI_API_KEY.value(), GEMINI_MODEL.value(), {
+    budgetMs,
+    thinkingLevel: parseThinkingLevel(GEMINI_THINKING_LEVEL.value()),
+    onRetry: (attempt, detail) => logger.warn('LLM retry', { attempt, detail }),
+  });
 
 // ------------------------------------------------------------------ helpers
 
@@ -63,10 +84,22 @@ async function withLlm<T>(fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();
   } catch (e) {
-    if (e instanceof LlmQuotaError) throw new HttpsError('resource-exhausted', QUOTA_MESSAGE);
     if (e instanceof HttpsError) throw e;
+    const detail = (e as Error)?.message;
+    if (e instanceof LlmQuotaError) {
+      logger.warn('LLM quota exhausted', { detail });
+      throw new HttpsError('resource-exhausted', QUOTA_MESSAGE);
+    }
+    if (e instanceof LlmConfigError) {
+      logger.error('LLM configuration error', { detail });
+      throw new HttpsError('failed-precondition', CONFIG_MESSAGE);
+    }
+    if (e instanceof LlmTimeoutError) {
+      logger.warn('LLM timeout', { detail });
+      throw new HttpsError('deadline-exceeded', TIMEOUT_MESSAGE);
+    }
     logger.error('LLM error', e);
-    throw new HttpsError('unavailable', 'Asystent AI jest chwilowo niedostępny. Spróbuj ponownie za chwilę.');
+    throw new HttpsError('unavailable', UNAVAILABLE_MESSAGE);
   }
 }
 
@@ -142,7 +175,7 @@ export const askFormalAssistant = onCall({ secrets: [GEMINI_API_KEY], timeoutSec
   } else if (req.data?.path === 'A' || req.data?.path === 'B') {
     context = { path: req.data.path, formType: null, step: null, status: null };
   }
-  const answer = await withLlm(() => answerFormal(llm(), question, context));
+  const answer = await withLlm(() => answerFormal(llm(110_000), question, context));
   logger.info('formal', { refused: answer.refused, reason: answer.debug.reason, fragments: answer.debug.fragments.length });
   const sessionRef = await session(c, 'FORMAL_ASSISTANT', req.data?.sessionId, evaluationId);
   await addMessage(sessionRef, { role: 'user', content: question, refused: false, context, citations: [] });
@@ -158,7 +191,7 @@ export const askInterviewAssistant = onCall({ secrets: [GEMINI_API_KEY], timeout
   if (!TASKS.includes(task)) throw new HttpsError('invalid-argument', 'Nieznane zadanie asystenta.');
   const { ev, employee } = await loadOwnEvaluation(c, req.data?.evaluationId);
   const message = typeof req.data?.message === 'string' ? req.data.message.slice(0, 1500) : undefined;
-  const text = await withLlm(() => interviewAssistant(llm(), task, ev, employee, message));
+  const text = await withLlm(() => interviewAssistant(llm(110_000), task, ev, employee, message));
   const context: ScreenContext = { path: pathOf(ev), formType: ev.formType, step: stepLabel(ev, req.data?.step), status: ev.status };
   const sessionRef = await session(c, 'INTERVIEW_ASSISTANT', req.data?.sessionId, ev.id);
   await addMessage(sessionRef, { role: 'user', content: message ?? `[${task}]`, refused: false, context, citations: [] });
@@ -171,7 +204,7 @@ export const suggestCriteria = onCall({ secrets: [GEMINI_API_KEY], timeoutSecond
   const { ev, employee } = await loadOwnEvaluation(c, req.data?.evaluationId);
   const osp = (req.data?.osp as Osp | undefined) ?? employee.osp;
   const formType = (req.data?.formType as FormType | undefined) ?? ev.formType;
-  const criteria = await withLlm(() => suggestAdditionalCriteria(llm(), osp, formType));
+  const criteria = await withLlm(() => suggestAdditionalCriteria(llm(55_000), osp, formType));
   return { criteria };
 });
 
