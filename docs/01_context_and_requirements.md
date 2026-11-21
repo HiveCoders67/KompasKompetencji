@@ -46,6 +46,7 @@ Aplikacja musi obejmować **dwie odrębne ścieżki oceny**:
 ## 5. Twarde ograniczenia i wymagania krytyczne (MUST-HAVE)
 1. **BRAK WERSJI NA SMARTFONY:** W treści zadania wprost zaznaczono: *"System nie ma być dostępny na smartfonach."* Interfejs projektujemy wyłącznie pod przeglądarkę internetową (desktop / laptop).
 2. **WYŁĄCZNIE DARMOWE NARZĘDZIA AI:** Zespoły na etapie hackathonu mogą korzystać wyłącznie z darmowych narzędzi i modeli AI (np. darmowe tiery API, modele open-source).
+   * **Świadome odstępstwo zespołu (21.11.2026):** asystenci AI korzystają z **płatnego tieru Gemini API (Gemini 3.5 Flash-Lite)**. Powód: darmowa Gemma 4 odpowiadała 30–80 s i była często przeciążona (HTTP 503), a darmowy limit (16 tys. tokenów wejściowych na minutę) mieścił ok. 3 pytania na minutę. Flash-Lite odpowiada w ok. 1 s i przechodzi zestaw testów asystenta 30/30; koszt to poniżej 1 grosza za pytanie. Ten sam model działa też na darmowym tierze (z limitem zapytań na minutę), więc w razie potrzeby wystarczy podmienić klucz — bez zmian w kodzie.
 3. **HUMAN-IN-THE-LOOP (AI nie ocenia samodzielnie):** System oblicza i prezentuje *sugerowany* poziom spełniania kompetencji na podstawie wybranych przez przełożonego zachowań, ale **ostateczną decyzję o poziomie oceny zawsze wybiera i zatwierdza przełożony**.
 4. **ASYSTENT AI OPARTY O BAZĘ WIEDZY (RAG):** Odpowiedzi muszą opierać się na dostarczonych źródłach, wskazywać dokładne źródło (akt prawny, paragraf, poradnik), a w przypadku braku informacji w bazie wiedzy — jasno komunikować brak danych zamiast halucynować.
 5. **DZIAŁAJĄCY PROTOTYP:** Same makiety lub prezentacja koncepcji nie wystarczą. Prototyp musi umożliwiać przejście co najmniej jednej kompletnej ścieżki (od rozpoczęcia, przez kryteria i wskaźniki behawioralne, po sugestię poziomu, decyzję przełożonego i generowanie PDF) oraz interaktywne przetestowanie asystenta AI przez jurorów.
@@ -89,7 +90,7 @@ Aplikacja musi obejmować **dwie odrębne ścieżki oceny**:
 | **Frontend** | React + Vite + TypeScript (SPA), Tailwind v4 na zmiennych `--sf-*`, Radix UI (dostępne prymitywy bez stylów), Firebase Hosting. |
 | **Backend** | Firebase: Auth (custom claims z rolami), Cloud Firestore, Cloud Functions (plan Blaze z alertem budżetowym). |
 | **Logika domenowa** | Pakiet `packages/domain` (czysty TS) współdzielony przez UI i Cloud Functions — gwarantuje identyczne wyliczenia po obu stronach. |
-| **AI** | Gemma 4 przez Gemini API (darmowy tier; ~30 RPM / ~14 400 RPD — do potwierdzenia w AI Studio). Wywołania wyłącznie z Cloud Functions. Interfejs `LlmProvider` pozwala w produkcji podpiąć model on-premise (Bielik / PLLuM). |
+| **AI** | Gemini 3.5 Flash-Lite przez Gemini API (płatny tier, `thinkingLevel: minimal`; świadome odstępstwo — patrz § 5 pkt 2). Wywołania wyłącznie z Cloud Functions. Interfejs `LlmProvider` pozwala w produkcji podpiąć model on-premise (Bielik / PLLuM). |
 | **RAG** | BM25 (`minisearch`) po statycznym indeksie JSON budowanym z `knowledge/sources/`; walidacja cytatów w kodzie. |
 | **PDF** | `@react-pdf/renderer` w przeglądarce, układ wzorowany na urzędowych arkuszach, osadzony font z polskimi znakami. |
 | **Testy** | Vitest (logika domenowa) + `@firebase/rules-unit-testing` na emulatorze (reguły Firestore). Bez E2E w prototypie. |

@@ -1,9 +1,9 @@
 # Specyfikacja Asystentów AI, RAG i Bezpieczeństwa (20% oceny Jury)
 
 ## 1. Wymagania ogólne wobec AI
-* **Model:** wyłącznie **Gemma 4 przez Gemini API** (darmowy tier; wg źródeł zewnętrznych ok. 30 RPM / 14 400 RPD na projekt Google Cloud, reset o północy czasu pacyficznego — potwierdzić na stronie limitów projektu w AI Studio). Do weryfikacji przy pierwszym prototypie: limit TPM oraz obsługa instrukcji systemowych i ustrukturyzowanego JSON-a dla Gemmy w Gemini API.
+* **Model:** wyłącznie **Gemini 3.5 Flash-Lite** (`gemini-3.5-flash-lite`) przez Gemini API, płatny tier, `thinkingLevel: minimal`, odpowiedzi w trybie JSON (`responseMimeType`). Świadome odstępstwo od wymogu darmowych narzędzi AI (uzasadnienie: `01_context_and_requirements.md` § 5 pkt 2). Pomiar 21.11.2026: ok. 1 s na odpowiedź, zestaw testów asystenta 30/30 w trzech przebiegach (wcześniej Gemma 4 31B: 55–80 s). Model i poziom myślenia ustawiane parametrami `GEMINI_MODEL` / `GEMINI_THINKING_LEVEL` (domyślnie powyższe).
 * **Wywołania wyłącznie z Cloud Functions** — klucz API nigdy nie trafia do przeglądarki. Dostawca schowany za interfejsem `LlmProvider` (w produkcji: model on-premise, np. Bielik / PLLuM).
-* **Brak przełączania na inne modele.** Gdy API zwróci błąd limitu (HTTP 429) lub wyczerpanie zasobów, UI wyświetla komunikat: *„Wyczerpano dostępne zasoby asystenta AI. Spróbuj ponownie później.”* — bez fallbacku.
+* **Brak przełączania na inne modele.** Gdy API zwróci błąd limitu (HTTP 429) lub wyczerpanie zasobów (także brak środków na koncie, HTTP 402), UI wyświetla komunikat: *„Wyczerpano dostępne zasoby asystenta AI. Spróbuj ponownie później.”* — bez fallbacku.
 * **Rola wyłącznie doradcza i wspierająca:** AI **nigdy** nie wystawia oceny pracownika ani nie podejmuje decyzji kadrowych.
 * **Dane osobowe:** prototyp działa na danych fikcyjnych i **nie stosuje pseudonimizacji**. W dokumentacji dla jury wskazujemy wymóg produkcyjny: pseudonimizacja promptów lub model on-premise + umowa powierzenia.
 

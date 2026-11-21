@@ -16,7 +16,7 @@ Prototyp aplikacji webowej wspierającej przełożonych w służbie cywilnej w p
 - **Eksport PDF** w układzie urzędowych arkuszy.
 
 ## Technologie
-React + Vite + TypeScript · Tailwind v4 · Firebase (Auth, Firestore, Cloud Functions, Hosting) · Gemma 4 (Gemini API, darmowy tier) · BM25 (minisearch) · @react-pdf/renderer · Vitest.
+React + Vite + TypeScript · Tailwind v4 · Firebase (Auth, Firestore, Cloud Functions, Hosting) · Gemini 3.5 Flash-Lite (Gemini API, płatny tier) · BM25 (minisearch) · @react-pdf/renderer · Vitest.
 
 ## Struktura repozytorium
 | Katalog | Zawartość |
@@ -50,7 +50,7 @@ Na ekranie logowania kliknij **„Przywróć dane demo”**, a potem jeden z prz
 ## Wdrożenie (Firebase, plan Blaze)
 
 ```bash
-npx firebase functions:secrets:set GEMINI_API_KEY   # klucz z Google AI Studio (darmowy tier)
+npx firebase functions:secrets:set GEMINI_API_KEY   # klucz z Google AI Studio (projekt z płatnym tierem)
 npm run deploy                                      # build web + functions, reguły, indeksy, hosting
 GOOGLE_APPLICATION_CREDENTIALS=<klucz-konta-serwisowego>.json npm run seed:prod
 ```

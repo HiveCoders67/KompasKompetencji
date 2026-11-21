@@ -43,8 +43,13 @@ const SYSTEM = `Jesteś Asystentem Formalnym Oceny w służbie cywilnej. Odpowia
 ZASADY (bezwzględne):
 1. Odpowiadasz WYŁĄCZNIE na podstawie fragmentów oznaczonych [F1], [F2]… podanych w wiadomości. Nie korzystasz z własnej wiedzy, nie zgadujesz i nie dopowiadasz.
 2. Jeżeli fragmenty nie zawierają odpowiedzi na pytanie, ustaw "insufficient": true i nie odpowiadaj merytorycznie.
-3. Każde twierdzenie merytoryczne musi być poparte cytatem. Cytat wskazuje identyfikator fragmentu, jego jednostkę redakcyjną i stronę DOKŁADNIE tak, jak podano w nagłówku fragmentu (możesz doprecyzować punkt, np. "§ 11 ust. 1 pkt 4"), oraz krótki dosłowny wyjątek (do 200 znaków) skopiowany z treści fragmentu.
-4. Nie wystawiasz ocen pracownikom i nie podejmujesz decyzji kadrowych — wyjaśniasz przepisy. Przy pytaniach o konkretny przypadek zastosuj przepis do podanych faktów i zacznij od jednoznacznej odpowiedzi (np. „Nie — ocena jest negatywna, ponieważ…”).
+3. Każde twierdzenie merytoryczne musi być poparte cytatem. Każdy fragment ma nagłówek: [Fn] źródło: … | jednostka: … | strona: … | tytuł sekcji: …. Dla każdego cytatu podaj:
+   - "fragment": identyfikator fragmentu, np. "F2";
+   - "unit": wartość pola „jednostka” z nagłówka TEGO fragmentu, przepisana znak w znak (np. "rozdz. 5.3", "art. 36 ust. 8", "§ 10 ust. 1"). Nie wpisuj tytułu sekcji ani przepisu przywołanego w treści fragmentu — jeśli fragment poradnika z jednostką "rozdz. 4.1" omawia § 4 ust. 1, to "unit" = "rozdz. 4.1". Tylko przy artykule lub paragrafie możesz doprecyzować punkt, np. "§ 11 ust. 1 pkt 4";
+   - "page": wartość pola „strona” z nagłówka tego fragmentu;
+   - "quote": od 5 do 25 kolejnych słów przepisanych z treści tego fragmentu DOSŁOWNIE — bez zmiany odmiany i szyku, bez skrótów, bez wielokropków, bez łączenia kilku zdań, z zachowaniem ewentualnych literówek.
+   Jeśli we fragmentach jest zarówno przepis (ustawa, rozporządzenie), jak i poradnik, cytuj przede wszystkim przepis.
+4. Nie wystawiasz ocen pracownikom i nie podejmujesz decyzji kadrowych — wyjaśniasz przepisy. Przy pytaniach o konkretny przypadek zastosuj przepis do podanych faktów (liczb, okresów, dat) i podaj konkretny skutek dla tego przypadku, a nie tylko ogólną regułę (np. „Tak — termin przedłuża się o 60 dni, bo nieobecność trwała dłużej niż miesiąc”). Zacznij od jednoznacznej odpowiedzi; wynik oceny podaj w mianowniku, tak jak w przepisach — „Ocena pozytywna — …” albo „Ocena negatywna — …”. Jeśli wynik zależy od obliczeń (średnia ocen, liczba dni, przesunięcie terminu), pokaż je z liczbami z pytania.
 5. Kontekst ekranu służy tylko do dopasowania odpowiedzi (np. ścieżka pierwszej oceny vs oceny okresowej), nie jest źródłem.
 6. Pisz po polsku, rzeczowo, maksymalnie 8 zdań. Bez nagłówków markdown.
 
@@ -64,7 +69,7 @@ export function describeContext(ctx: ScreenContext | null): string {
 }
 
 const header = (c: Chunk) =>
-  `${SOURCE_TITLES[c.source]} | jednostka: ${c.unit ?? '—'} | strona: ${c.page ?? '—'}${c.heading ? ` | ${c.heading}` : ''}`;
+  `źródło: ${SOURCE_TITLES[c.source]} | jednostka: ${c.unit ?? '—'} | strona: ${c.page ?? '—'}${c.heading ? ` | tytuł sekcji: ${c.heading}` : ''}`;
 
 export function buildPrompt(question: string, hits: Hit[], ctx: ScreenContext | null): string {
   const fragments = hits.map((h, i) => `[F${i + 1}] ${header(h.chunk)}\n${h.chunk.text}`).join('\n\n');
@@ -78,6 +83,16 @@ const norm = (s: string) =>
     .replace(/[\s ]+/g, ' ')
     .replace(/[–—-]/g, '-')
     .trim();
+
+/**
+ * The quote must appear verbatim in the fragment. Whitespace is ignored in the comparison only because the
+ * PDF-extracted sources contain broken words (e.g. „p rzystąpić”) — letters, punctuation and order must match.
+ */
+export function quoteInText(quote: string, text: string): boolean {
+  const squash = (x: string) => norm(x).replace(/\s+/g, '');
+  const q = squash(quote.replace(/\s*(\.\.\.|…)\s*$/, ''));
+  return q.length > 0 && squash(text).includes(q);
+}
 
 /** A cited unit matches the fragment if equal or more specific („§ 11 ust. 1 pkt 4” ⊂ „§ 11 ust. 1”). */
 function unitMatches(cited: string | null | undefined, actual: string | null): boolean {
@@ -96,18 +111,20 @@ export function validateCitations(raw: ModelCitation[] | undefined, hits: Hit[])
     const hit = hits[idx];
     if (!hit) return { ok: false, citations: [], reason: `nieznany fragment ${c.fragment}` };
     const ch = hit.chunk;
-    if (!unitMatches(c.unit, ch.unit)) return { ok: false, citations: [], reason: `jednostka ${c.unit} ≠ ${ch.unit}` };
+    // no unit given → the fragment's own metadata is used (it comes from the index, not from the model)
+    const unit = c.unit?.trim() ? c.unit.trim() : ch.unit;
+    if (!unitMatches(unit, ch.unit)) return { ok: false, citations: [], reason: `jednostka ${c.unit} ≠ ${ch.unit}` };
     if ((c.page ?? null) !== null && ch.page !== null && Number(c.page) !== ch.page) {
       return { ok: false, citations: [], reason: `strona ${c.page} ≠ ${ch.page}` };
     }
-    if (c.quote && !norm(ch.text).includes(norm(c.quote).replace(/(\.\.\.|…)$/, '').trim())) {
+    if (c.quote && !quoteInText(c.quote, ch.text)) {
       return { ok: false, citations: [], reason: `cytat spoza fragmentu ${c.fragment}` };
     }
-    if (citations.some((x) => x.source === ch.source && x.unit === (c.unit || ch.unit) && x.page === ch.page)) continue;
+    if (citations.some((x) => x.source === ch.source && x.unit === unit && x.page === ch.page)) continue;
     citations.push({
       source: ch.source,
       sourceTitle: SOURCE_TITLES[ch.source],
-      unit: c.unit || ch.unit,
+      unit,
       page: ch.page,
       excerpt: c.quote?.trim() || ch.text.slice(0, 200),
     });
@@ -121,7 +138,7 @@ export async function answerFormal(llm: LlmProvider, question: string, ctx: Scre
   const refuse = (reason: string): FormalAnswer => ({ content: REFUSAL, refused: true, citations: [], debug: { fragments, reason } });
   if (!hits.length || Math.max(...hits.map((h) => h.coverage)) < MIN_COVERAGE) return refuse('poniżej progu trafności');
 
-  const raw = await llm.generate({ system: SYSTEM, user: buildPrompt(question, hits, ctx), temperature: 0.1 });
+  const raw = await llm.generate({ system: SYSTEM, user: buildPrompt(question, hits, ctx), temperature: 0.1, json: true });
   const parsed = parseJsonObject<ModelAnswer>(raw);
   if (!parsed || typeof parsed.answer !== 'string') return refuse('niepoprawny JSON modelu');
   if (parsed.insufficient) return refuse('model: brak informacji we fragmentach');

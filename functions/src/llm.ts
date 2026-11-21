@@ -1,5 +1,5 @@
 /*
- * LLM provider (docs/03 § 1). Prototype: Gemma 4 via the Gemini API (free tier), key only in Cloud Functions
+ * LLM provider (docs/03 § 1). Gemini API (paid tier, default Gemini 3.5 Flash-Lite), key only in Cloud Functions
  * (secret GEMINI_API_KEY). No fallback to other models — on quota exhaustion the user gets QUOTA_MESSAGE.
  * Production: an on-premise model (e.g. Bielik / PLLuM) behind the same interface.
  */
@@ -9,6 +9,8 @@ export interface LlmRequest {
   user: string;
   temperature?: number;
   maxOutputTokens?: number;
+  /** Ask the API for a JSON response (responseMimeType); the caller still parses defensively. */
+  json?: boolean;
 }
 
 export interface LlmProvider {
@@ -39,14 +41,29 @@ export class LlmConfigError extends LlmError {}
 /** The model did not answer within the time budget. */
 export class LlmTimeoutError extends LlmError {}
 
-export const DEFAULT_MODEL = 'gemma-4-31b-it';
+// Fastest / cheapest Gemini model; with minimal thinking ~1.5 s per answer, 10/10 on the assistant test set (2026-11-21)
+export const DEFAULT_MODEL = 'gemini-3.5-flash-lite';
+export const THINKING_LEVELS = ['minimal', 'low', 'medium', 'high'] as const;
+export type ThinkingLevel = (typeof THINKING_LEVELS)[number];
+/** 'minimal' = fastest; 'default' = the model's own default thinking level. */
+export const DEFAULT_THINKING_LEVEL: ThinkingLevel | 'default' = 'minimal';
+/** Parses GEMINI_THINKING_LEVEL; unknown values / 'default' → model default (no thinkingConfig sent). */
+export const parseThinkingLevel = (v: string | undefined): ThinkingLevel | undefined =>
+  (THINKING_LEVELS as readonly string[]).includes(v ?? '') ? (v as ThinkingLevel) : undefined;
 
-export interface GemmaOptions {
+export interface GeminiOptions {
   /** Total time for all attempts; must stay below the Cloud Function timeout (min. 60 s). */
   budgetMs?: number;
   /** Extra attempts after a transient failure (5xx, network error). */
   retries?: number;
   backoffMs?: number;
+  /**
+   * Thinking level sent to the API; undefined = model default. (Gemma 4 accepts only "minimal",
+   * Gemini 3.x Flash models also low / medium / high.)
+   */
+  thinkingLevel?: ThinkingLevel;
+  /** Called before each retry with the reason of the failed attempt (for logs). */
+  onRetry?: (attempt: number, detail: string) => void;
 }
 
 const TRANSIENT_STATUS = new Set([500, 502, 503, 504]);
@@ -58,21 +75,26 @@ interface GeminiBody {
   error?: { status?: string; message?: string; details?: { reason?: string }[] };
 }
 
-export class GemmaProvider implements LlmProvider {
+export class GeminiProvider implements LlmProvider {
   readonly name: string;
   private readonly budgetMs: number;
   private readonly retries: number;
   private readonly backoffMs: number;
+  private readonly onRetry?: (attempt: number, detail: string) => void;
+  private readonly thinkingLevel?: ThinkingLevel;
 
   constructor(
     private apiKey: string,
     private model = DEFAULT_MODEL,
-    opts: GemmaOptions = {},
+    opts: GeminiOptions = {},
   ) {
     this.name = model;
     this.budgetMs = opts.budgetMs ?? 50_000;
-    this.retries = opts.retries ?? 2;
-    this.backoffMs = opts.backoffMs ?? 1_000;
+    // Gemini returns 503 "high demand" in bursts — spread the attempts over the time budget (2, 4, 8, 16 s)
+    this.retries = opts.retries ?? 4;
+    this.backoffMs = opts.backoffMs ?? 2_000;
+    this.onRetry = opts.onRetry;
+    this.thinkingLevel = opts.thinkingLevel;
   }
 
   async generate(req: LlmRequest): Promise<string> {
@@ -82,15 +104,16 @@ export class GemmaProvider implements LlmProvider {
       try {
         return await this.once(req, deadline - Date.now());
       } catch (e) {
-        const wait = this.backoffMs * 3 ** attempt;
+        const wait = this.backoffMs * 2 ** attempt;
         const canRetry = e instanceof LlmError && e.retryable && attempt < this.retries && deadline - Date.now() - wait >= MIN_ATTEMPT_MS;
         if (!canRetry) throw e;
+        this.onRetry?.(attempt + 1, (e as Error).message);
         await new Promise((r) => setTimeout(r, wait));
       }
     }
   }
 
-  private async once({ system, user, temperature = 0.2, maxOutputTokens = 2048 }: LlmRequest, timeoutMs: number): Promise<string> {
+  private async once({ system, user, temperature = 0.2, maxOutputTokens = 2048, json }: LlmRequest, timeoutMs: number): Promise<string> {
     let res: Response;
     try {
       res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent`, {
@@ -99,7 +122,12 @@ export class GemmaProvider implements LlmProvider {
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: system }] },
           contents: [{ role: 'user', parts: [{ text: user }] }],
-          generationConfig: { temperature, maxOutputTokens },
+          generationConfig: {
+            temperature,
+            maxOutputTokens,
+            ...(json ? { responseMimeType: 'application/json' } : {}),
+            ...(this.thinkingLevel ? { thinkingConfig: { thinkingLevel: this.thinkingLevel } } : {}),
+          },
         }),
         signal: AbortSignal.timeout(Math.max(timeoutMs, 1)),
       });
@@ -116,7 +144,7 @@ export class GemmaProvider implements LlmProvider {
     if (res.status === 401 || res.status === 403 || res.status === 404 || keyRejected) throw new LlmConfigError(detail);
     if (!res.ok) throw new LlmError(detail, TRANSIENT_STATUS.has(res.status));
 
-    // Gemma 4 may return thinking parts — only the final answer is used
+    // thinking models may return thought parts — only the final answer is used
     const candidate = body?.candidates?.[0];
     const text = (candidate?.content?.parts ?? [])
       .filter((p) => !p.thought)
@@ -135,6 +163,14 @@ export class GemmaProvider implements LlmProvider {
 export function parseJsonObject<T>(text: string): T | null {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
   const raw = fenced ? fenced[1] : text;
+  // JSON mode may return the object wrapped in an array
+  try {
+    const whole = JSON.parse(raw.trim()) as unknown;
+    const obj = Array.isArray(whole) ? whole[0] : whole;
+    if (obj && typeof obj === 'object') return obj as T;
+  } catch {
+    /* fall through to extracting the first {...} */
+  }
   const start = raw.indexOf('{');
   const end = raw.lastIndexOf('}');
   if (start < 0 || end <= start) return null;

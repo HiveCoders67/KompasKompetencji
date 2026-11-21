@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { GemmaProvider, LlmConfigError, LlmError, LlmQuotaError, LlmTimeoutError } from './llm';
+import { GeminiProvider, LlmConfigError, LlmError, LlmQuotaError, LlmTimeoutError } from './llm';
 
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 const ok = (text: string) => json(200, { candidates: [{ content: { parts: [{ text: 'thinking…', thought: true }, { text }] } }] });
 const apiError = (status: number, statusText: string, message = 'x', details: unknown[] = []) =>
   json(status, { error: { code: status, status: statusText, message, details } });
 
-const provider = (opts = {}) => new GemmaProvider('test-key', 'gemma-test', { backoffMs: 1, ...opts });
+const provider = (opts = {}) => new GeminiProvider('test-key', 'model-test', { backoffMs: 1, ...opts });
 const req = { system: 's', user: 'u' };
 
 function mockFetch(...responses: (Response | Error)[]) {
@@ -18,7 +18,7 @@ function mockFetch(...responses: (Response | Error)[]) {
 
 afterEach(() => vi.unstubAllGlobals());
 
-describe('GemmaProvider error handling', () => {
+describe('GeminiProvider error handling', () => {
   it('returns the final answer without thinking parts', async () => {
     mockFetch(ok('Odpowiedź'));
     await expect(provider().generate(req)).resolves.toBe('Odpowiedź');
@@ -26,7 +26,7 @@ describe('GemmaProvider error handling', () => {
 
   it('missing key → config error, no request sent', async () => {
     const f = mockFetch();
-    await expect(new GemmaProvider('  ').generate(req)).rejects.toBeInstanceOf(LlmConfigError);
+    await expect(new GeminiProvider('  ').generate(req)).rejects.toBeInstanceOf(LlmConfigError);
     expect(f).not.toHaveBeenCalled();
   });
 
@@ -48,7 +48,7 @@ describe('GemmaProvider error handling', () => {
     const f = mockFetch(res);
     const err = await provider().generate(req).catch((e) => e);
     expect(err).toBeInstanceOf(LlmConfigError);
-    expect(err.message).toContain('gemma-test');
+    expect(err.message).toContain('model-test');
     expect(f).toHaveBeenCalledTimes(1);
   });
 
@@ -90,5 +90,25 @@ describe('GemmaProvider error handling', () => {
   it('empty / blocked answer reports the reason', async () => {
     mockFetch(json(200, { promptFeedback: { blockReason: 'SAFETY' } }));
     await expect(provider().generate(req)).rejects.toThrow(/SAFETY/);
+  });
+});
+
+describe('parseJsonObject', () => {
+  it('handles plain, fenced, array-wrapped and noisy JSON', async () => {
+    const { parseJsonObject } = await import('./llm');
+    expect(parseJsonObject('{"a":1}')).toEqual({ a: 1 });
+    expect(parseJsonObject('```json\n{"a":1}\n```')).toEqual({ a: 1 });
+    expect(parseJsonObject('[{"a":1}]')).toEqual({ a: 1 });
+    expect(parseJsonObject('Oto wynik: {"a":1} — koniec')).toEqual({ a: 1 });
+    expect(parseJsonObject('brak')).toBeNull();
+  });
+});
+
+describe('GeminiProvider request', () => {
+  it('sends JSON mode and the thinking level when requested', async () => {
+    const f = mockFetch(ok('{}'));
+    await provider({ thinkingLevel: 'minimal' }).generate({ ...req, json: true });
+    const body = JSON.parse(f.mock.calls[0][1].body);
+    expect(body.generationConfig).toMatchObject({ responseMimeType: 'application/json', thinkingConfig: { thinkingLevel: 'minimal' } });
   });
 });
