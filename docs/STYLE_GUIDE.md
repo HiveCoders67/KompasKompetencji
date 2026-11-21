@@ -2,7 +2,7 @@
 
 > **For AI assistants:** treat this as the source of truth for the look and feel of the project.
 > Reproduce the style using the tokens and rules below. Do not invent new colours, fonts, radii or shadows.
-> Exact values live in the token files exported next to this guide (see "Files" at the end).
+> Exact values live in `docs/tokens.css` (light and dark), generated from the tables below.
 >
 > **Scope:** this guide defines the *visual language only*: colour, type, shape, components and motion.
 > It is independent of the product's topic. Page structure, sections and content come from the project
@@ -12,7 +12,7 @@
 
 **Base style:** Minimalism. Generous whitespace, monochrome palette and precise type.
 
-**Default theme:** light. Both light and dark palettes are defined; dark mode is switched with `[data-theme="dark"]` on `<html>`.
+**Default theme:** follows the system (`prefers-color-scheme`), with a manual toggle in the sidebar remembered in `localStorage`. Both light and dark palettes are defined; the manual choice is applied with `[data-theme="light"]` / `[data-theme="dark"]` on `<html>`. Both themes must meet WCAG 2.1 AA.
 
 ### Signature rules: do
 
@@ -36,14 +36,16 @@ Use colours through CSS variables (`var(--sf-<role>)`), never hard-coded hex val
 
 | Role | Variable | Light | Dark | Use for |
 | --- | --- | --- | --- | --- |
-| primary | `--sf-primary` | `#111111` | `#999999` | Main brand colour: primary buttons, active states, key links |
+| primary | `--sf-primary` | `#111111` | `#f4f0f0` | Main brand colour: primary buttons, active states, key links |
+| onPrimary | `--sf-on-primary` | `#ffffff` | `#140f0f` | Text and icons placed on `primary` |
 | secondary | `--sf-secondary` | `#5f5f63` | `#8a8a8f` | Supporting brand colour: secondary actions, tags, illustrations |
-| accent | `--sf-accent` | `#2f6bff` | `#3d72f5` | Highlights used sparingly: badges, emphasis, decorative details |
+| accent | `--sf-accent` | `#2f6bff` | `#5585f7` | Highlights used sparingly: badges, emphasis, decorative details |
 | background | `--sf-background` | `#ffffff` | `#140f0f` | Page background |
 | surface | `--sf-surface` | `#fafafa` | `#1f1919` | Cards, inputs, modals, navigation bars |
 | textPrimary | `--sf-text-primary` | `#0a0a0a` | `#f4f0f0` | Headings and body text |
 | textSecondary | `--sf-text-secondary` | `#6b6b70` | `#b4a7a7` | Muted text: descriptions, captions, placeholders |
-| border | `--sf-border` | `#ebebeb` | `#3b3030` | Dividers and component outlines |
+| border | `--sf-border` | `#ebebeb` | `#3b3030` | Decorative dividers and card outlines only |
+| borderStrong | `--sf-border-strong` | `#8a8a8f` | `#7a6e6e` | Boundaries of form controls (checkbox, select, outlined inputs) — min. 3:1 (WCAG 1.4.11) |
 | success | `--sf-success` | `#15803d` | `#2ddc6e` | Positive feedback only |
 | warning | `--sf-warning` | `#c2410c` | `#f2652c` | Warnings only |
 | error | `--sf-error` | `#dc2626` | `#e34f4f` | Errors and destructive actions only |
@@ -55,7 +57,15 @@ Use colours through CSS variables (`var(--sf-<role>)`), never hard-coded hex val
 - Muted text on background: 5.30:1 (AA)
 - Text on surface: 18.97:1 (AAA)
 - Text on primary: 18.88:1 (AAA)
-- Text placed on `primary` should be `#ffffff`.
+- Text placed on `primary` uses `--sf-on-primary` (`#ffffff` light / `#140f0f` dark).
+
+**Contrast (dark theme, on `#140f0f`):**
+
+- Text on primary (`#140f0f` on `#f4f0f0`): 16.8:1 (AAA). The dark theme inverts the monochrome: primary buttons are near-white with dark text. (The original dark primary `#999999` with white text gave ~2.85:1 and failed AA.)
+- Muted text: 8.2:1 on background, 7.5:1 on surface (AAA). Status colours on background: success 10.5, warning 6.0, error 5.0, info 5.1 (all AA); on surface error 4.5 and info 4.7 (AA).
+- `accent` `#5585f7`: 5.5:1 on background, 5.0:1 on surface (AA). Changed from `#3d72f5` (4.46:1, failed AA). Do not put white text on dark-theme accent (3.45:1).
+
+**Non-text contrast (WCAG 1.4.11):** `border` (~1.2–1.5:1) is decorative only. Any boundary needed to identify a control uses `border-strong`: light 3.4:1 on background / 3.3:1 on surface; dark 3.9:1 / 3.5:1.
 
 ## 3. Typography
 
@@ -169,16 +179,16 @@ Each component has a chosen variant and its own tokens (`--sf-<component>-*` in 
 
 | Component | Variant | Background | Text | Border | Radius | Padding | Font | Shadow | Hover |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Buttons | Solid | `primary` | auto (readable contrast) | 1px `primary` | 8px | 11px 20px | body 15px/600 | none | darken 40% |
+| Buttons | Solid | `primary` | `on-primary` | 1px `primary` | 8px | 11px 20px | body 15px/600 | none | darken 40% |
 | Cards | Outlined | `surface` | `text-primary` | 1px `border` | 12px | 24px 24px | - | none | - |
-| Inputs | Filled | `border` @45% | `text-primary` | 0px transparent | 8px | 10px 14px | body 15px/400 | none | - |
-| Textareas | Neumorphic | `background` | `text-primary` | 0px transparent | 8px | 12px 14px | body 15px/400 | none | - |
+| Inputs | Filled | `border` @45% | `text-primary` | 1px `border-strong` (bottom) | 8px | 10px 14px | body 15px/400 | none | - |
+| Textareas | Neumorphic | `background` | `text-primary` | 1px `border-strong` | 8px | 12px 14px | body 15px/400 | none | - |
 | Dropdowns | Elevated | `surface` | `text-primary` | 1px `border` | 10px | 8px 12px | body 14px/500 | lg | darken 6% |
-| Selects | Outlined | `surface` | `text-primary` | 1px `border` | 8px | 10px 2px | body 15px/400 | none | - |
-| Checkboxes | Rounded | `surface` | `text-primary` | 1px `border` | 4px | - | body 15px/400 | none | - |
+| Selects | Outlined | `surface` | `text-primary` | 1px `border-strong` | 8px | 10px 2px | body 15px/400 | none | - |
+| Checkboxes | Rounded | `surface` | `text-primary` | 1px `border-strong` | 4px | - | body 15px/400 | none | - |
 | Radio buttons | Brutal | `surface` | `text-primary` | 3px `text-primary` | 8px | - | body 15px/400 | none | - |
-| Switches | Square | `border` | `text-primary` | 0px `text-primary` | 4px | - | body 15px/400 | none | - |
-| Badges | Solid | `primary` | auto (readable contrast) | 0px transparent | 6px | 3px 10px | body 12px/600 | none | - |
+| Switches | Square | `border-strong` (off track) | `text-primary` | 0px `text-primary` | 4px | - | body 15px/400 | none | - |
+| Badges | Solid | `primary` | `on-primary` | 0px transparent | 6px | 3px 10px | body 12px/600 | none | - |
 | Alerts | Soft | `info` @10% | `text-primary` | 1px `info` | 8px | 14px 16px | body 14px/400 | none | - |
 | Modals | Outlined | `surface` | `text-primary` | 1px `border` | 14px | 28px 28px | - | sm | - |
 | Tables | Lined | transparent | `text-primary` | 1px `border` | 10px | 12px 16px | body 14px/400 | none | darken 4% |
@@ -207,13 +217,3 @@ Each component has a chosen variant and its own tokens (`--sf-<component>-*` in 
 | Tabs | fade | none |
 | Tooltips | fade | none |
 
-## 8. Files in this export
-
-| File | What it is |
-| --- | --- |
-| `css/*.tokens.css` | All CSS variables (light and dark), base typography, motion. **Recommended starting point:** import it in your global stylesheet. |
-| `tailwind/tailwind-v4-theme.css` | Tailwind v4 `@theme`. Remove its `@import 'tailwindcss'` line if your global CSS already imports Tailwind. |
-| `tailwind/tailwind.config.js` | Tailwind v3 theme extension. |
-| `scss/*.scss` | SCSS variables, maps and mixins. |
-| `react/*` | Tokens as TypeScript and example components (Button, Card, Input, Badge). In Next.js App Router add `'use client'` to components that use hooks. |
-| `json/*.styleforge.json` | Complete design definition. Can be re-imported into StyleForge. |

@@ -81,3 +81,29 @@ Aplikacja musi obejmować **dwie odrębne ścieżki oceny**:
 | **Jakość i użyteczność zastosowania AI** | **20%** | Jurorzy będą zadawać podchwytliwe pytania prawne asystentowi AI! Liczy się poprawność, cytowanie źródeł, odmowa halucynacji oraz praktyczna pomoc w rozmowie. |
 | **Innowacyjność i jakość rozwiązania** | **20%** | Czysty kod, stabilny prototyp, mądre połączenie analizy OSP z doborem kryteriów, generowanie jakościowego PDF, przemyślany panel HR. |
 | **Potencjał wdrożeniowy** | **10%** | Architektura gotowa pod EZD/QNT, RBAC, RODO, minimalizacja danych, możliwość użycia w MC i innych urzędach. |
+---
+
+## 9. Przyjęte decyzje projektowe (prototyp)
+| Obszar | Decyzja |
+| :--- | :--- |
+| **Frontend** | React + Vite + TypeScript (SPA), Tailwind v4 na zmiennych `--sf-*`, Radix UI (dostępne prymitywy bez stylów), Firebase Hosting. |
+| **Backend** | Firebase: Auth (custom claims z rolami), Cloud Firestore, Cloud Functions (plan Blaze z alertem budżetowym). |
+| **Logika domenowa** | Pakiet `packages/domain` (czysty TS) współdzielony przez UI i Cloud Functions — gwarantuje identyczne wyliczenia po obu stronach. |
+| **AI** | Gemma 4 przez Gemini API (darmowy tier; ~30 RPM / ~14 400 RPD — do potwierdzenia w AI Studio). Wywołania wyłącznie z Cloud Functions. Interfejs `LlmProvider` pozwala w produkcji podpiąć model on-premise (Bielik / PLLuM). |
+| **RAG** | BM25 (`minisearch`) po statycznym indeksie JSON budowanym z `knowledge/sources/`; walidacja cytatów w kodzie. |
+| **PDF** | `@react-pdf/renderer` w przeglądarce, układ wzorowany na urzędowych arkuszach, osadzony font z polskimi znakami. |
+| **Testy** | Vitest (logika domenowa) + `@firebase/rules-unit-testing` na emulatorze (reguły Firestore). Bez E2E w prototypie. |
+| **Motywy** | Jasny i ciemny (domyślnie wg `prefers-color-scheme`, ręczny przełącznik w sidebarze), oba zgodne z WCAG 2.1 AA. |
+| **Dostęp jury** | Ekran logowania z przyciskami „Wejdź jako przełożony / kierujący komórką / HR” (konta demo z prawdziwymi rolami) oraz „Przywróć dane demo”. |
+| **Przypomnienia** | Tylko w aplikacji (kolekcja `reminders`, licznik w sidebarze); e-mail / EZD jako przyszła integracja. |
+| **Wielourzędowość** | Pole `officeId` we wszystkich dokumentach domenowych i w regułach — gotowość na udostępnienie innym urzędom. |
+
+### 9.1. Kolejność realizacji
+1. **MVP:** Ścieżka B / **Arkusz C** (analiza OSP → Rozpocznij ocenę → Zakończ ocenę z modelem kompetencji → wynik → PDF) + Asystent Formalny + panel HR.
+2. Ścieżka B / Arkusz B (różni się listą kryteriów obowiązkowych).
+3. Ścieżka A (pierwsza ocena) + Asystent Rozmowy w pełnym zakresie.
+
+### 9.2. RODO — elementy do zabezpieczenia przed wdrożeniem produkcyjnym
+* Prototyp działa na danych fikcyjnych i **nie pseudonimizuje** promptów. Przed produkcją: pseudonimizacja treści wysyłanych do LLM lub model on-premise (Bielik / PLLuM) oraz umowa powierzenia przetwarzania.
+* Nieobecności przechowujemy wyłącznie jako okresy (bez przyczyny) — przyczyna mogłaby stanowić dane o zdrowiu (art. 9 RODO).
+* Treści sprawozdania z pierwszej oceny nie przechowujemy — tylko daty.

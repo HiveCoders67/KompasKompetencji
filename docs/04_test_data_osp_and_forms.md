@@ -1,7 +1,13 @@
-# Dane Testowe (OSP), Struktury Formularzy PDF i Brakujące Zasoby
+# Dane Testowe (OSP), Struktury Formularzy PDF i Zasoby Źródłowe
 
 ## 1. Dostarczone Opisy Stanowisk Pracy (OSP) — Gotowe Scenariusze Demo
-W materiałach konkursowych Ministerstwo Cyfryzacji przekazało 3 realne szablony OSP. Warto zaszyć je w prototypie jako gotowe profile pracowników testowych (z fikcyjnymi imionami i nazwiskami), aby móc płynnie zademonstrować analizę OSP oraz obie ścieżki (Arkusz B i Arkusz C).
+W materiałach konkursowych Ministerstwo Cyfryzacji przekazało 3 realne OSP (szablon MC, DOCX) — pliki w `demo-data/osp/`. Zaszywamy je w prototypie jako gotowe profile pracowników testowych (z fikcyjnymi imionami i nazwiskami), aby płynnie zademonstrować analizę OSP oraz oba arkusze (B i C). Te same pliki służą do pokazania wgrywania OSP na żywo (parser DOCX — patrz `03_...` § 2.C).
+
+| Scenariusz | Plik |
+| :--- | :--- |
+| 1. Starszy specjalista (C) | `demo-data/osp/osp-dc-wzksoic-6-starszy-specjalista.docx` |
+| 2. Radca (C) | `demo-data/osp/osp-dsi-wwi-5-radca.docx` |
+| 3. Naczelnik wydziału (B) | `demo-data/osp/osp-dwm-wkam-1-naczelnik-wydzialu.docx` |
 
 ### Scenariusz 1: Starszy specjalista (Arkusz C)
 * **Symbol:** `DC WZKSOiC 6`
@@ -81,7 +87,17 @@ W materiałach konkursowych Ministerstwo Cyfryzacji przekazało 3 realne szablon
 
 ---
 
-## 3. UWAGA DLA AGENTÓW — Brakujący zasób do uzupełnienia
-* **Plik `Model_kompetencji.xlsx`** (15 stron/arkuszy) nie został wyekstrahowany tekstowo w bieżącej sesji.
-* **Akcja wymagana przed finalnym zaimplementowaniem bazy wskaźników behawioralnych:** Należy wyeksportować `Model_kompetencji.xlsx` do formatu `JSON` lub `CSV` (np. skryptem Python `pandas`/`openpyxl`) i zasilić nim bazę wskaźników behawioralnych aplikacji oraz bazę wiedzy RAG.
-* Do czasu konwersji Excela agenci mogą oprzeć strukturę danych modelu kompetencyjnego na 14 kryteriach z Załącznika nr 1 (opisanych w `02_domain_logic_and_rules.md`), projektując schemat tak, aby łatwo wgrać docelowy JSON z wskaźnikami behawioralnymi i przypisanymi do nich poziomami (1–9 / 3–7).
+## 3. Zasoby źródłowe
+| Zasób | Lokalizacja |
+| :--- | :--- |
+| Wzory arkuszy B, C i pierwszej oceny (z przypisami) | `knowledge/sources/forms/` |
+| Model kompetencji (49 wskaźników × 5 poziomów) | `knowledge/sources/model/model-kompetencji.xlsx` → `packages/domain/data/competencies.json` |
+| Akty prawne i poradniki KPRM | `knowledge/sources/legal/`, `knowledge/sources/guides/` |
+| Grafika koncepcyjna MC „Ścieżki Oceny” | `docs/assets/sciezki-oceny.png` |
+
+**Uwagi do PDF:**
+* Wygląd PDF odwzorowuje urzędowe wzory (tabele, pola „X”, linie podpisów, przypisy), **nie** STYLE_GUIDE aplikacji.
+* Arkusz C ma tę samą strukturę co Arkusz B; różni się listą kryteriów obowiązkowych (§ 4 ust. 3 rozp. z 2016 r.).
+* Część III drukowana wyłącznie dla urzędnika SC przy ocenie pozytywnej i złożonym wniosku z art. 89 ust. 1.
+* Część VI arkusza pierwszej oceny (wnioski rozwojowe) — tylko przy ocenie pozytywnej.
+* Średnia drukowana z 2 miejscami po przecinku; poziomy i wyniki jako polskie etykiety ze słownika `labels.pl`.

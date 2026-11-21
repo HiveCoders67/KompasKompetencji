@@ -1,0 +1,182 @@
+/*
+ * Kompas Kompetencji — design tokens
+ * Generated from docs/STYLE_GUIDE.md (source of truth). Do not add values that are not in the guide.
+ * Theme: follows prefers-color-scheme; a manual choice sets [data-theme="light" | "dark"] on <html>.
+ * Both themes meet WCAG 2.1 AA (see STYLE_GUIDE.md § 2).
+ */
+
+@import url("https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap");
+
+/* ---------- Theme-independent tokens ---------- */
+:root {
+  /* Typography */
+  --sf-font-heading: "Archivo Black", system-ui, sans-serif;
+  --sf-font-body: "IBM Plex Sans", system-ui, sans-serif;
+  --sf-font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --sf-h1-size: 55px; --sf-h1-lh: 1.08; --sf-h1-ls: -0.035em;
+  --sf-h2-size: 43px; --sf-h2-lh: 1.13; --sf-h2-ls: -0.035em;
+  --sf-h3-size: 34px; --sf-h3-lh: 1.18; --sf-h3-ls: -0.035em;
+  --sf-h4-size: 26px; --sf-h4-lh: 1.23; --sf-h4-ls: -0.017em;
+  --sf-h5-size: 22px; --sf-h5-lh: 1.28; --sf-h5-ls: -0.017em;
+  --sf-h6-size: 19px; --sf-h6-lh: 1.33; --sf-h6-ls: -0.017em;
+  --sf-body-size: 16px; --sf-body-lh: 1.6; --sf-body-ls: 0em;
+  --sf-small-size: 14px; --sf-small-lh: 1.5; --sf-small-ls: 0.005em;
+
+  /* Shape */
+  --sf-radius-sm: 4px;
+  --sf-radius: 8px;
+  --sf-radius-lg: 12px;
+  --sf-border-width: 1px;
+
+  /* Shadows (soft, intensity 25%) */
+  --sf-shadow-sm: 0 1px 2px rgba(6, 6, 6, 0.013), 0 2px 6px rgba(6, 6, 6, 0.015);
+  --sf-shadow-md: 0 2px 4px rgba(6, 6, 6, 0.010), 0 8px 24px rgba(6, 6, 6, 0.025);
+  --sf-shadow-lg: 0 4px 8px rgba(6, 6, 6, 0.013), 0 24px 56px rgba(6, 6, 6, 0.040);
+
+  /* Spacing (unit 10px) */
+  --sf-space-1: 5px;
+  --sf-space-2: 10px;
+  --sf-space-3: 14px;
+  --sf-space-4: 19px;
+  --sf-space-5: 29px;
+  --sf-space-6: 38px;
+  --sf-space-7: 58px;
+  --sf-section-gap: 120px;
+
+  /* Layout */
+  --sf-container-max: 1120px;
+  --sf-container-padding: 32px;
+
+  /* Motion */
+  --sf-duration: 220ms;
+  --sf-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --sf-reveal-distance: 8px;
+  --sf-reveal-stagger: 40ms;
+
+  /* Interaction states */
+  --sf-press-scale: 0.97;
+  --sf-focus-ring-width: 3px;
+  --sf-disabled-opacity: 0.45;
+
+  /* Component tokens (STYLE_GUIDE.md § 6) */
+  --sf-button-radius: 8px;      --sf-button-padding: 11px 20px;
+  --sf-card-radius: 12px;       --sf-card-padding: 24px;
+  --sf-input-radius: 8px;       --sf-input-padding: 10px 14px;
+  --sf-textarea-radius: 8px;    --sf-textarea-padding: 12px 14px;
+  --sf-dropdown-radius: 10px;   --sf-dropdown-padding: 8px 12px;
+  --sf-select-radius: 8px;      --sf-select-padding: 10px 2px;
+  --sf-checkbox-radius: 4px;
+  --sf-radio-radius: 8px;       --sf-radio-border-width: 3px;
+  --sf-switch-radius: 4px;
+  --sf-badge-radius: 6px;       --sf-badge-padding: 3px 10px;
+  --sf-alert-radius: 8px;       --sf-alert-padding: 14px 16px;
+  --sf-modal-radius: 14px;      --sf-modal-padding: 28px;
+  --sf-table-radius: 10px;      --sf-table-cell-padding: 12px 16px;
+  --sf-tab-padding: 9px 14px;
+  --sf-nav-radius: 9999px;      --sf-nav-padding: 8px 14px;
+  --sf-breadcrumb-radius: 8px;
+  --sf-tooltip-radius: 6px;     --sf-tooltip-padding: 6px 10px;
+}
+
+/* ---------- Light theme (default) ---------- */
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+  --sf-primary: #111111;
+  --sf-on-primary: #ffffff;
+  --sf-secondary: #5f5f63;
+  --sf-accent: #2f6bff;
+  --sf-background: #ffffff;
+  --sf-surface: #fafafa;
+  --sf-text-primary: #0a0a0a;
+  --sf-text-secondary: #6b6b70;
+  --sf-border: #ebebeb;
+  --sf-border-strong: #8a8a8f;
+  --sf-success: #15803d;
+  --sf-warning: #c2410c;
+  --sf-error: #dc2626;
+  --sf-info: #2563eb;
+}
+
+/* ---------- Dark theme ---------- */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --sf-primary: #f4f0f0;
+  --sf-on-primary: #140f0f;
+  --sf-secondary: #8a8a8f;
+  --sf-accent: #5585f7;
+  --sf-background: #140f0f;
+  --sf-surface: #1f1919;
+  --sf-text-primary: #f4f0f0;
+  --sf-text-secondary: #b4a7a7;
+  --sf-border: #3b3030;
+  --sf-border-strong: #7a6e6e;
+  --sf-success: #2ddc6e;
+  --sf-warning: #f2652c;
+  --sf-error: #e34f4f;
+  --sf-info: #4d80ef;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --sf-primary: #f4f0f0;
+    --sf-on-primary: #140f0f;
+    --sf-secondary: #8a8a8f;
+    --sf-accent: #5585f7;
+    --sf-background: #140f0f;
+    --sf-surface: #1f1919;
+    --sf-text-primary: #f4f0f0;
+    --sf-text-secondary: #b4a7a7;
+    --sf-border: #3b3030;
+    --sf-border-strong: #7a6e6e;
+    --sf-success: #2ddc6e;
+    --sf-warning: #f2652c;
+    --sf-error: #e34f4f;
+    --sf-info: #4d80ef;
+  }
+}
+
+/* ---------- Base typography ---------- */
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background: var(--sf-background);
+  color: var(--sf-text-primary);
+  font-family: var(--sf-font-body);
+  font-size: var(--sf-body-size);
+  line-height: var(--sf-body-lh);
+  letter-spacing: var(--sf-body-ls);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--sf-font-heading);
+  font-weight: 400; /* never fake bold */
+  margin: 0;
+}
+h1 { font-size: var(--sf-h1-size); line-height: var(--sf-h1-lh); letter-spacing: var(--sf-h1-ls); }
+h2 { font-size: var(--sf-h2-size); line-height: var(--sf-h2-lh); letter-spacing: var(--sf-h2-ls); }
+h3 { font-size: var(--sf-h3-size); line-height: var(--sf-h3-lh); letter-spacing: var(--sf-h3-ls); }
+h4 { font-size: var(--sf-h4-size); line-height: var(--sf-h4-lh); letter-spacing: var(--sf-h4-ls); }
+h5 { font-size: var(--sf-h5-size); line-height: var(--sf-h5-lh); letter-spacing: var(--sf-h5-ls); }
+h6 { font-size: var(--sf-h6-size); line-height: var(--sf-h6-lh); letter-spacing: var(--sf-h6-ls); }
+
+small { font-size: var(--sf-small-size); line-height: var(--sf-small-lh); letter-spacing: var(--sf-small-ls); }
+code, kbd, samp { font-family: var(--sf-font-mono); }
+
+:focus-visible {
+  outline: var(--sf-focus-ring-width) solid var(--sf-primary);
+  outline-offset: 2px;
+}
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
