@@ -8,7 +8,8 @@
       "source": "functions/dist",
       "codebase": "default",
       "runtime": "nodejs22",
-      "predeploy": ["npm run build -w functions"]
+      "predeploy": ["npm run build -w functions"],
+      "ignore": ["node_modules", ".git", "firebase-debug.log", "firebase-debug.*.log", "*.local"]
     }
   ],
   "hosting": {

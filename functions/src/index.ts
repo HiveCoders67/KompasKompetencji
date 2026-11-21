@@ -23,7 +23,18 @@ import {
 import { db, fromSnap, toData } from './admin';
 import { clearDemoOffice, seedDemo } from './demoSeed';
 import { interviewAssistant, suggestAdditionalCriteria, type InterviewTask } from './interview';
-import { DEFAULT_MODEL, GemmaProvider, LlmQuotaError, QUOTA_MESSAGE, type LlmProvider } from './llm';
+import {
+  CONFIG_MESSAGE,
+  DEFAULT_MODEL,
+  GemmaProvider,
+  LlmConfigError,
+  LlmQuotaError,
+  LlmTimeoutError,
+  QUOTA_MESSAGE,
+  TIMEOUT_MESSAGE,
+  UNAVAILABLE_MESSAGE,
+  type LlmProvider,
+} from './llm';
 import { answerFormal } from './rag/formal';
 
 setGlobalOptions({ region: 'europe-central2', maxInstances: 5 });
@@ -63,10 +74,22 @@ async function withLlm<T>(fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();
   } catch (e) {
-    if (e instanceof LlmQuotaError) throw new HttpsError('resource-exhausted', QUOTA_MESSAGE);
     if (e instanceof HttpsError) throw e;
+    const detail = (e as Error)?.message;
+    if (e instanceof LlmQuotaError) {
+      logger.warn('LLM quota exhausted', { detail });
+      throw new HttpsError('resource-exhausted', QUOTA_MESSAGE);
+    }
+    if (e instanceof LlmConfigError) {
+      logger.error('LLM configuration error', { detail });
+      throw new HttpsError('failed-precondition', CONFIG_MESSAGE);
+    }
+    if (e instanceof LlmTimeoutError) {
+      logger.warn('LLM timeout', { detail });
+      throw new HttpsError('deadline-exceeded', TIMEOUT_MESSAGE);
+    }
     logger.error('LLM error', e);
-    throw new HttpsError('unavailable', 'Asystent AI jest chwilowo niedostępny. Spróbuj ponownie za chwilę.');
+    throw new HttpsError('unavailable', UNAVAILABLE_MESSAGE);
   }
 }
 

@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { DEMO_PASSWORD, DEMO_USERS, JURY_ENTRY } from '@kompas/domain';
-import { useSession } from '../app/session';
+import { isCredentialError, useSession } from '../app/session';
 import { Alert, Field } from '../components/ui';
 import { callableError, resetDemoFn } from '../data/repo';
 import { usingEmulator } from '../firebase';
@@ -11,24 +11,29 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [resetState, setResetState] = useState<'idle' | 'busy' | 'done'>('idle');
+  const [signingIn, setSigningIn] = useState<string | null>(null);
+  const busy = loading || signingIn !== null || resetState === 'busy';
 
-  const enter = async (uid: string) => {
+  const attempt = async (key: string, email: string, password: string, demo: boolean) => {
     setError(null);
-    const u = DEMO_USERS.find((x) => x.uid === uid)!;
-    try {
-      await signIn(u.email, DEMO_PASSWORD);
-    } catch (e) {
-      setError((e as Error).message + ' Jeśli dane demo nie zostały jeszcze wczytane, użyj „Przywróć dane demo”.');
-    }
-  };
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
-    setError(null);
+    setResetState((s) => (s === 'done' ? 'idle' : s));
+    setSigningIn(key);
     try {
       await signIn(email, password);
-    } catch (err) {
-      setError((err as Error).message);
+    } catch (e) {
+      const hint = demo && isCredentialError(e) ? ' Konta demo mogły nie zostać jeszcze wczytane — użyj „Przywróć dane demo”.' : '';
+      setError((e as Error).message + hint);
+    } finally {
+      setSigningIn(null);
     }
+  };
+  const enter = (uid: string) => {
+    const u = DEMO_USERS.find((x) => x.uid === uid)!;
+    return attempt(uid, u.email, DEMO_PASSWORD, true);
+  };
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    return attempt('form', email, password, false);
   };
   const reset = async () => {
     setResetState('busy');
@@ -65,14 +70,20 @@ export function LoginPage() {
         </div>
         <div className="flex flex-col gap-s2">
           {JURY_ENTRY.map((j, i) => (
-            <button key={j.uid} className={`btn ${i === 0 ? '' : 'btn-secondary'} justify-between text-left`} disabled={loading} onClick={() => enter(j.uid)}>
-              <span>{j.label}</span>
+            <button
+              key={j.uid}
+              className={`btn ${i === 0 ? '' : 'btn-secondary'} justify-between text-left`}
+              disabled={busy}
+              aria-busy={signingIn === j.uid}
+              onClick={() => enter(j.uid)}
+            >
+              <span>{signingIn === j.uid ? 'Logowanie…' : j.label}</span>
               <span className="text-xs font-normal opacity-80">{j.description}</span>
             </button>
           ))}
         </div>
         <div className="flex items-center gap-s3">
-          <button className="btn btn-ghost btn-sm" onClick={reset} disabled={resetState === 'busy'}>
+          <button className="btn btn-ghost btn-sm" onClick={reset} disabled={busy}>
             {resetState === 'busy' ? 'Przywracanie…' : 'Przywróć dane demo'}
           </button>
           {resetState === 'done' && <span className="text-sm text-success">Dane demo przywrócone.</span>}
@@ -88,8 +99,8 @@ export function LoginPage() {
             <Field label="Hasło" htmlFor="password">
               <input id="password" className="input" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
             </Field>
-            <button className="btn btn-secondary self-start" type="submit" disabled={loading}>
-              Zaloguj
+            <button className="btn btn-secondary self-start" type="submit" disabled={busy}>
+              {signingIn === 'form' ? 'Logowanie…' : 'Zaloguj'}
             </button>
           </form>
         </details>
