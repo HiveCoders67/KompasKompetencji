@@ -47,7 +47,7 @@ Aplikacja musi obejmować **dwie odrębne ścieżki oceny**:
 1. **BRAK WERSJI NA SMARTFONY:** W treści zadania wprost zaznaczono: *"System nie ma być dostępny na smartfonach."* Interfejs projektujemy wyłącznie pod przeglądarkę internetową (desktop / laptop).
 2. **WYŁĄCZNIE DARMOWE NARZĘDZIA AI:** Zespoły na etapie hackathonu mogą korzystać wyłącznie z darmowych narzędzi i modeli AI (np. darmowe tiery API, modele open-source).
 3. **HUMAN-IN-THE-LOOP (AI nie ocenia samodzielnie):** System oblicza i prezentuje *sugerowany* poziom spełniania kompetencji na podstawie wybranych przez przełożonego zachowań, ale **ostateczną decyzję o poziomie oceny zawsze wybiera i zatwierdza przełożony**.
-4. **ASYTENT AI OPARTY O BAZĘ WIEDZY (RAG):** Odpowiedzi muszą opierać się na dostarczonych źródłach, wskazywać dokładne źródło (akt prawny, paragraf, poradnik), a w przypadku braku informacji w bazie wiedzy — jasno komunikować brak danych zamiast halucynować.
+4. **ASYSTENT AI OPARTY O BAZĘ WIEDZY (RAG):** Odpowiedzi muszą opierać się na dostarczonych źródłach, wskazywać dokładne źródło (akt prawny, paragraf, poradnik), a w przypadku braku informacji w bazie wiedzy — jasno komunikować brak danych zamiast halucynować.
 5. **DZIAŁAJĄCY PROTOTYP:** Same makiety lub prezentacja koncepcji nie wystarczą. Prototyp musi umożliwiać przejście co najmniej jednej kompletnej ścieżki (od rozpoczęcia, przez kryteria i wskaźniki behawioralne, po sugestię poziomu, decyzję przełożonego i generowanie PDF) oraz interaktywne przetestowanie asystenta AI przez jurorów.
 
 ---

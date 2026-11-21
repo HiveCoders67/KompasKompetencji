@@ -4,7 +4,7 @@ Ten dokument zawiera twarde reguły biznesowe, wzory obliczeniowe i walidacje pr
 
 ---
 
-## 1. ŚCIEŻKA A: Ocena Okresowa w Służbie Cywilnej
+## 1. ŚCIEŻKA B: Ocena Okresowa w Służbie Cywilnej
 **Podstawa prawna:**
 * Ustawa z dnia 21 listopada 2008 r. o służbie cywilnej (m.in. art. 71, 81–83, 89, 108).
 * Rozporządzenie Prezesa Rady Ministrów z dnia 4 kwietnia 2016 r. w sprawie warunków i sposobu przeprowadzania ocen okresowych urzędników służby cywilnej i pracowników służby cywilnej (Dz. U. poz. 470).
@@ -92,7 +92,7 @@ $$\bar{x} = \frac{\sum_{i=1}^{n} p_i}{n}, \quad n \in \{5, 6, 7, 8\}$$
 
 ---
 
-## 2. ŚCIEŻKA B: Pierwsza Ocena w Służbie Cywilnej
+## 2. ŚCIEŻKA A: Pierwsza Ocena w Służbie Cywilnej
 **Podstawa prawna:**
 * Ustawa z dnia 21 listopada 2008 r. o służbie cywilnej (art. 35–38).
 * Rozporządzenie Prezesa Rady Ministrów z dnia 23 lipca 2015 r. w sprawie szczegółowych warunków i sposobu dokonywania pierwszej oceny w służbie cywilnej (Dz. U. poz. 1144).

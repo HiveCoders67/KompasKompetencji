@@ -155,7 +155,9 @@ Główna kolekcja procesów oceny. Wspólna kolekcja dla obu ścieżek upraszcza
 
   "promotionRequest": {
     "included": false,
+    "appointmentYear": "number | null",
     "currentRank": "string | null",
+    "currentRankGrantedAt": "Timestamp | null",
     "requestedRank": "string | null",
     "motivation": "string | null"
   },
@@ -168,7 +170,31 @@ Główna kolekcja procesów oceny. Wspólna kolekcja dla obu ścieżek upraszcza
 ### Kluczowe reguły pól:
 * **Human-in-the-loop:** `suggestedScore` jest wyliczane deterministycznie ze wskaźników `selectedBehaviors`; `finalScore` jest zawsze wybierane/zatwierdzane przez przełożonego.
 * **Terminy:** `reportDueFrom` / `reportDueTo` oraz obiekt `firstEvalRequirements` dotyczą wyłącznie `type == "FIRST_EVALUATION"`.
-* **Część III (`promotionRequest`):** Dotyczy wyłącznie `type == "PERIODIC_EVALUATION"` dla pracownika ze statusem `URZEDNIK_SC` oraz wynikiem `POSITIVE`.
+* **Część III (`promotionRequest`):** Dotyczy wyłącznie `type == "PERIODIC_EVALUATION"` dla pracownika ze statusem `URZEDNIK_SC` oraz wynikiem `POSITIVE`. Pola `appointmentYear` (rok mianowania) i `currentRankGrantedAt` (data przyznania posiadanego stopnia) są wymagane przez wzór Części III arkusza.
+
+### 4.1. Kolekcja `evaluation_tracking/{evaluationId}` (widok dla HR)
+Zdenormalizowana kopia **wyłącznie** danych potrzebnych w panelu monitoringu HR. Identyfikator dokumentu = `evaluationId`. Firestore Security Rules nie pozwalają ograniczyć odczytu do wybranych pól dokumentu, dlatego `HR_ADMIN` **nie ma** dostępu do `evaluations` (oceny cząstkowe, uzasadnienie, IPRZ), a jedynie do tej kolekcji (minimalizacja danych — RODO).
+
+```json
+{
+  "evaluationId": "evaluations/{id}",
+  "type": "FIRST_EVALUATION | PERIODIC_EVALUATION",
+  "formType": "FIRST | FORM_B | FORM_C",
+  "status": "DRAFT | INITIAL_TALK_DONE | IN_PROGRESS | FINAL_TALK_DONE | COMPLETED",
+  "employeeName": "Jan Kowalski",
+  "department": "Departament Cyberbezpieczeństwa",
+  "supervisorId": "users/{uid}",
+  "supervisorName": "Anna Nowak",
+  "deadlines": {
+    "initialTalkDue": "Timestamp",
+    "evaluationDueDate": "Timestamp",
+    "reportDueTo": "Timestamp | null"
+  },
+  "updatedAt": "Timestamp"
+}
+```
+
+> **Synchronizacja:** dokument aktualizowany przy każdej zmianie `status` / `deadlines` w `evaluations` — w prototypie w tej samej transakcji/batchu po stronie klienta, docelowo przez Cloud Function (trigger `onDocumentWritten` na `evaluations/{id}`). Wynik oceny (`POSITIVE`/`NEGATIVE`) celowo nie jest kopiowany.
 
 ---
 
@@ -223,7 +249,7 @@ Przechowywanie kontekstu i historii rozmów z dwoma trybami asystenta AI.
 ## 7. Zalecane indeksy złożone (Composite Indexes)
 Aby zapytania w panelu przełożonego i panelu HR działały bez błędów `FAILED_PRECONDITION`, należy utworzyć indeksy:
 1. `evaluations`: `supervisorId` (ASC) + `status` (ASC) + `deadlines.evaluationDueDate` (ASC) — *lista ocen przełożonego posortowana po terminie*.
-2. `evaluations`: `department` (ASC) + `status` (ASC) + `deadlines.evaluationDueDate` (ASC) — *filtrowanie w panelu HR po departamencie i statusie*.
+2. `evaluation_tracking`: `department` (ASC) + `status` (ASC) + `deadlines.evaluationDueDate` (ASC) — *filtrowanie w panelu HR po departamencie i statusie*.
 3. `reminders`: `recipientUserId` (ASC) + `status` (ASC) + `createdAt` (DESC) — *nieprzeczytane przypomnienia dla zalogowanego przełożonego*.
 
 ---
@@ -235,5 +261,7 @@ Aby zapytania w panelu przełożonego i panelu HR działały bez błędów `FAIL
 * **`evaluations`:**
   * `SUPERVISOR`: pełny odczyt i zapis tylko dokumentów, gdzie `resource.data.supervisorId == request.auth.uid`.
   * `DEPARTMENT_HEAD`: odczyt i zatwierdzanie dokumentów, gdzie `resource.data.departmentHeadId == request.auth.uid` (Pierwsza ocena).
-  * `HR_ADMIN`: odczyt statusów i terminów (na produkcji warto odseparować robocze notatki z rozmów do podkolekcji dostępnej wyłącznie dla przełożonego w ramach zasady minimalizacji danych RODO).
+  * `HR_ADMIN`: **brak dostępu** — statusy i terminy odczytuje z `evaluation_tracking`.
+* **`evaluation_tracking`:** Odczyt dla `HR_ADMIN` oraz dla przełożonego, gdzie `resource.data.supervisorId == request.auth.uid`; zapis wyłącznie przez przełożonego właściwej oceny (prototyp) lub Cloud Function (produkcja).
+* **`reminders`:** Tworzenie przez `HR_ADMIN` (lub Cloud Function); odczyt i zmiana `status` na `READ` przez adresata (`resource.data.recipientUserId == request.auth.uid`).
 * **`ai_sessions`:** Odczyt i zapis wyłącznie dla właściciela sesji (`resource.data.userId == request.auth.uid`).
