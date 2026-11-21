@@ -185,5 +185,6 @@ export function callableError(e: unknown): string {
   const err = e as { code?: string; message?: string };
   if (err.code === 'functions/resource-exhausted') return 'Wyczerpano dostępne zasoby asystenta AI. Spróbuj ponownie później.';
   if (err.code === 'functions/internal' || !err.message) return 'Wystąpił błąd serwera. Spróbuj ponownie.';
-  return err.message;
+  // the SDK may append the HTTP status („… [503]”) — not meaningful for the user
+  return err.message.replace(/\s*\[\d{3}\]\s*$/, '');
 }

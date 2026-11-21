@@ -3,7 +3,7 @@ Converts knowledge/sources/model/model-kompetencji.xlsx (MC competency model) in
 packages/domain/data/competencies.json — the single source of truth for UI, Firestore seed and RAG index
 (docs/02 § 3.1). Standard library only.
 
-Usage: python3 knowledge/scripts/build_competencies.py
+Usage: npm run kb:build (or python3 knowledge/scripts/build_competencies.py)
 """
 import html
 import json

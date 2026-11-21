@@ -89,7 +89,7 @@ Aplikacja musi obejmować **dwie odrębne ścieżki oceny**:
 | **Frontend** | React + Vite + TypeScript (SPA), Tailwind v4 na zmiennych `--sf-*`, Radix UI (dostępne prymitywy bez stylów), Firebase Hosting. |
 | **Backend** | Firebase: Auth (custom claims z rolami), Cloud Firestore, Cloud Functions (plan Blaze z alertem budżetowym). |
 | **Logika domenowa** | Pakiet `packages/domain` (czysty TS) współdzielony przez UI i Cloud Functions — gwarantuje identyczne wyliczenia po obu stronach. |
-| **AI** | Gemma 4 przez Gemini API (darmowy tier; ~30 RPM / ~14 400 RPD — do potwierdzenia w AI Studio). Wywołania wyłącznie z Cloud Functions. Interfejs `LlmProvider` pozwala w produkcji podpiąć model on-premise (Bielik / PLLuM). |
+| **AI** | Gemini 3.5 Flash-Lite (`gemini-3.5-flash-lite`, minimalne „myślenie”, odpowiedź w schemacie JSON) przez Gemini API (darmowy tier; limity do sprawdzenia w AI Studio). Wywołania wyłącznie z Cloud Functions. Interfejs `LlmProvider` pozwala w produkcji podpiąć model on-premise (Bielik / PLLuM). |
 | **RAG** | BM25 (`minisearch`) po statycznym indeksie JSON budowanym z `knowledge/sources/`; walidacja cytatów w kodzie. |
 | **PDF** | `@react-pdf/renderer` w przeglądarce, układ wzorowany na urzędowych arkuszach, osadzony font z polskimi znakami. |
 | **Testy** | Vitest (logika domenowa) + `@firebase/rules-unit-testing` na emulatorze (reguły Firestore). Bez E2E w prototypie. |

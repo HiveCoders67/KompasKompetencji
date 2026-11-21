@@ -23,14 +23,14 @@ import {
 import { db, fromSnap, toData } from './admin';
 import { clearDemoOffice, seedDemo } from './demoSeed';
 import { interviewAssistant, suggestAdditionalCriteria, type InterviewTask } from './interview';
-import { DEFAULT_MODEL, GemmaProvider, LlmQuotaError, QUOTA_MESSAGE, type LlmProvider } from './llm';
+import { DEFAULT_MODEL, GeminiProvider, LlmQuotaError, QUOTA_MESSAGE, type LlmProvider } from './llm';
 import { answerFormal } from './rag/formal';
 
 setGlobalOptions({ region: 'europe-central2', maxInstances: 5 });
 
 const GEMINI_API_KEY = defineSecret('GEMINI_API_KEY');
-const GEMMA_MODEL = defineString('GEMMA_MODEL', { default: DEFAULT_MODEL });
-const llm = (): LlmProvider => new GemmaProvider(GEMINI_API_KEY.value(), GEMMA_MODEL.value());
+const LLM_MODEL = defineString('LLM_MODEL', { default: DEFAULT_MODEL });
+const llm = (): LlmProvider => new GeminiProvider(GEMINI_API_KEY.value(), LLM_MODEL.value());
 
 // ------------------------------------------------------------------ helpers
 

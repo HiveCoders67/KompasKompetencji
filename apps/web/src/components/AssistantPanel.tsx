@@ -65,6 +65,9 @@ export function FormalChat({ evaluationId, step, path, examples }: { evaluationI
       setSessionId(r.sessionId);
       setMessages((m) => [...m, r.message]);
     } catch (e) {
+      // nothing was stored on the server — drop the local question and give it back for a retry (no duplicates)
+      setMessages((m) => m.filter((x) => x.id !== local.id));
+      setQ(question);
       setError(callableError(e));
     } finally {
       setBusy(false);

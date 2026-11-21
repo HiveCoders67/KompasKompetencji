@@ -8,8 +8,9 @@ import { retrieve, SOURCE_TITLES, type Chunk, type Hit } from './search';
  *  1. BM25 retrieval over knowledge/sources (screen context is NOT part of the query),
  *  2. below the relevance threshold → refusal without calling the model,
  *  3. the model answers ONLY from numbered fragments and returns JSON with structured citations,
- *  4. every citation is validated in code against the retrieved fragments' {source, unit, page};
- *     a mismatch (or a quote not found in the fragment) → the answer is replaced by the refusal.
+ *  4. every citation is validated in code against the retrieved fragments: the fragment must have been retrieved
+ *     and the quote must occur in it verbatim; without a quote, unit and page must match the metadata.
+ *     Any failure → the answer is replaced by the refusal. Displayed unit/page always come from the index.
  */
 
 export const REFUSAL =
@@ -42,7 +43,7 @@ const SYSTEM = `Jesteś Asystentem Formalnym Oceny w służbie cywilnej. Odpowia
 
 ZASADY (bezwzględne):
 1. Odpowiadasz WYŁĄCZNIE na podstawie fragmentów oznaczonych [F1], [F2]… podanych w wiadomości. Nie korzystasz z własnej wiedzy, nie zgadujesz i nie dopowiadasz.
-2. Jeżeli fragmenty nie zawierają odpowiedzi na pytanie, ustaw "insufficient": true i nie odpowiadaj merytorycznie.
+2. Jeżeli fragmenty nie zawierają odpowiedzi na pytanie, ustaw "insufficient": true i nie odpowiadaj merytorycznie. Pytania potoczne odnoś do pojęć z przepisów (np. „ocena roczna” → ocena okresowa, „L4” → usprawiedliwiona nieobecność) i zaznacz to w odpowiedzi jednym zdaniem — nie odmawiaj tylko z powodu innego słownictwa.
 3. Każde twierdzenie merytoryczne musi być poparte cytatem. Cytat wskazuje identyfikator fragmentu, jego jednostkę redakcyjną i stronę DOKŁADNIE tak, jak podano w nagłówku fragmentu (możesz doprecyzować punkt, np. "§ 11 ust. 1 pkt 4"), oraz krótki dosłowny wyjątek (do 200 znaków) skopiowany z treści fragmentu.
 4. Nie wystawiasz ocen pracownikom i nie podejmujesz decyzji kadrowych — wyjaśniasz przepisy. Przy pytaniach o konkretny przypadek zastosuj przepis do podanych faktów i zacznij od jednoznacznej odpowiedzi (np. „Nie — ocena jest negatywna, ponieważ…”).
 5. Kontekst ekranu służy tylko do dopasowania odpowiedzi (np. ścieżka pierwszej oceny vs oceny okresowej), nie jest źródłem.
@@ -50,6 +51,29 @@ ZASADY (bezwzględne):
 
 Zwróć WYŁĄCZNIE obiekt JSON:
 {"answer": "treść odpowiedzi", "insufficient": false, "citations": [{"fragment": "F2", "unit": "art. 81 ust. 7", "page": 24, "quote": "dosłowny wyjątek"}]}`;
+
+/** Structured output schema — the Gemini API then always returns a parsable object of this shape. */
+const ANSWER_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    answer: { type: 'STRING' },
+    insufficient: { type: 'BOOLEAN' },
+    citations: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          fragment: { type: 'STRING' },
+          unit: { type: 'STRING', nullable: true },
+          page: { type: 'INTEGER', nullable: true },
+          quote: { type: 'STRING' },
+        },
+        required: ['fragment', 'quote'],
+      },
+    },
+  },
+  required: ['answer', 'insufficient', 'citations'],
+};
 
 export function describeContext(ctx: ScreenContext | null): string {
   if (!ctx || (!ctx.path && !ctx.formType && !ctx.step && !ctx.status)) return 'brak (pytanie ogólne)';
@@ -74,10 +98,97 @@ export function buildPrompt(question: string, hits: Hit[], ctx: ScreenContext | 
 const norm = (s: string) =>
   s
     .toLowerCase()
-    .replace(/[„”"'«»]/g, '')
+    .replace(/[„”“"'‘’‚«»]/g, '')
     .replace(/[\s ]+/g, ' ')
-    .replace(/[–—-]/g, '-')
+    .replace(/[–—−-]/g, '-')
     .trim();
+
+/** Elision marks the model may use inside a verbatim quote: [...], […], (...), ..., … */
+const ELISION = /\[\s*(?:\.\.\.|…)\s*\]|\(\s*(?:\.\.\.|…)\s*\)|\.\.\.|…/;
+
+/**
+ * A quote is grounded if every part between elision marks occurs verbatim in the fragment, in order.
+ * Elisions only skip text — they never allow words that are not in the source.
+ */
+export function quoteInFragment(quote: string, text: string): boolean {
+  const parts = quote
+    .split(ELISION)
+    .map(words)
+    .filter((p) => p.length);
+  if (!parts.length) return false;
+  return wordRunsMatch(words(text), parts) || compactMatch(text, parts);
+}
+
+function wordRunsMatch(haystack: string[], parts: string[][]): boolean {
+  let from = 0;
+  for (const part of parts) {
+    const at = findRun(haystack, part, from);
+    if (at < 0) return false;
+    from = at + part.length;
+  }
+  return true;
+}
+
+/**
+ * Fallback for PDF extraction artefacts in the guides („u rzędu”, „trwając a”): compares letters only,
+ * ignoring spaces. Exact letters (no typo tolerance), parts in order, and each part must be ≥ 20 letters.
+ */
+function compactMatch(text: string, parts: string[][]): boolean {
+  const hay = words(text).join('');
+  let from = 0;
+  for (const part of parts) {
+    const p = part.join('');
+    if (p.length < 20) return false;
+    const at = hay.indexOf(p, from);
+    if (at < 0) return false;
+    from = at + p.length;
+  }
+  return true;
+}
+
+/**
+ * Words for quote matching: list markers („a)”, „1)”, „pkt 2)”) and punctuation are ignored —
+ * models routinely drop them when copying an enumerated provision.
+ */
+function words(s: string): string[] {
+  return norm(s)
+    .replace(/(^|\s)(?:[a-z]|\d{1,2})\)(?=\s|$)/g, ' ')
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+/** Words match if equal, or — for words of 6+ letters — differ by a single edit (copying typo, e.g. „znaczenie”/„znacznie”). */
+function wordMatches(a: string, b: string): boolean {
+  if (a === b) return true;
+  if (Math.min(a.length, b.length) < 6 || Math.abs(a.length - b.length) > 1) return false;
+  let i = 0;
+  let j = 0;
+  let edits = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) {
+      i++;
+      j++;
+      continue;
+    }
+    if (++edits > 1) return false;
+    if (a.length > b.length) i++;
+    else if (b.length > a.length) j++;
+    else {
+      i++;
+      j++;
+    }
+  }
+  return edits + (a.length - i) + (b.length - j) <= 1;
+}
+
+/** Index of the first contiguous run in `hay` (from `from`) matching every word of `needle`, or -1. */
+function findRun(hay: string[], needle: string[], from: number): number {
+  for (let s = from; s + needle.length <= hay.length; s++) {
+    if (needle.every((w, k) => wordMatches(hay[s + k], w))) return s;
+  }
+  return -1;
+}
 
 /** A cited unit matches the fragment if equal or more specific („§ 11 ust. 1 pkt 4” ⊂ „§ 11 ust. 1”). */
 function unitMatches(cited: string | null | undefined, actual: string | null): boolean {
@@ -96,18 +207,23 @@ export function validateCitations(raw: ModelCitation[] | undefined, hits: Hit[])
     const hit = hits[idx];
     if (!hit) return { ok: false, citations: [], reason: `nieznany fragment ${c.fragment}` };
     const ch = hit.chunk;
-    if (!unitMatches(c.unit, ch.unit)) return { ok: false, citations: [], reason: `jednostka ${c.unit} ≠ ${ch.unit}` };
-    if ((c.page ?? null) !== null && ch.page !== null && Number(c.page) !== ch.page) {
-      return { ok: false, citations: [], reason: `strona ${c.page} ≠ ${ch.page}` };
-    }
-    if (c.quote && !norm(ch.text).includes(norm(c.quote).replace(/(\.\.\.|…)$/, '').trim())) {
+    // validated against exactly what the model was shown as this fragment (header line + text)
+    if (c.quote && !quoteInFragment(c.quote, `${header(ch)}\n${ch.text}`)) {
       return { ok: false, citations: [], reason: `cytat spoza fragmentu ${c.fragment}` };
     }
-    if (citations.some((x) => x.source === ch.source && x.unit === (c.unit || ch.unit) && x.page === ch.page)) continue;
+    const unitOk = unitMatches(c.unit, ch.unit);
+    const citedPage = Number.isFinite(Number(c.page)) && c.page !== null && c.page !== undefined ? Number(c.page) : null;
+    const pageOk = citedPage === null || ch.page === null || citedPage === ch.page;
+    // A verified verbatim quote grounds the citation even if the model mislabelled the unit/page —
+    // the displayed unit and page then come from the index metadata, never from the model.
+    if (!c.quote && !unitOk) return { ok: false, citations: [], reason: `jednostka ${c.unit} ≠ ${ch.unit}` };
+    if (!c.quote && !pageOk) return { ok: false, citations: [], reason: `strona ${c.page} ≠ ${ch.page}` };
+    const unit = unitOk && c.unit ? c.unit : ch.unit;
+    if (citations.some((x) => x.source === ch.source && x.unit === unit && x.page === ch.page)) continue;
     citations.push({
       source: ch.source,
       sourceTitle: SOURCE_TITLES[ch.source],
-      unit: c.unit || ch.unit,
+      unit,
       page: ch.page,
       excerpt: c.quote?.trim() || ch.text.slice(0, 200),
     });
@@ -121,7 +237,7 @@ export async function answerFormal(llm: LlmProvider, question: string, ctx: Scre
   const refuse = (reason: string): FormalAnswer => ({ content: REFUSAL, refused: true, citations: [], debug: { fragments, reason } });
   if (!hits.length || Math.max(...hits.map((h) => h.coverage)) < MIN_COVERAGE) return refuse('poniżej progu trafności');
 
-  const raw = await llm.generate({ system: SYSTEM, user: buildPrompt(question, hits, ctx), temperature: 0.1 });
+  const raw = await llm.generate({ system: SYSTEM, user: buildPrompt(question, hits, ctx), temperature: 0.1, jsonSchema: ANSWER_SCHEMA });
   const parsed = parseJsonObject<ModelAnswer>(raw);
   if (!parsed || typeof parsed.answer !== 'string') return refuse('niepoprawny JSON modelu');
   if (parsed.insufficient) return refuse('model: brak informacji we fragmentach');

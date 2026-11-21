@@ -1,9 +1,13 @@
 # Specyfikacja Asystentów AI, RAG i Bezpieczeństwa (20% oceny Jury)
 
 ## 1. Wymagania ogólne wobec AI
-* **Model:** wyłącznie **Gemma 4 przez Gemini API** (darmowy tier; wg źródeł zewnętrznych ok. 30 RPM / 14 400 RPD na projekt Google Cloud, reset o północy czasu pacyficznego — potwierdzić na stronie limitów projektu w AI Studio). Do weryfikacji przy pierwszym prototypie: limit TPM oraz obsługa instrukcji systemowych i ustrukturyzowanego JSON-a dla Gemmy w Gemini API.
+* **Model:** **Gemini 3.5 Flash-Lite (`gemini-3.5-flash-lite`) przez Gemini API**, darmowy tier (limity RPM / TPM / RPD — sprawdzić na stronie limitów projektu w AI Studio). Parametr `LLM_MODEL` w Cloud Functions (domyślnie `gemini-3.5-flash-lite`), `thinkingConfig.thinkingLevel = "minimal"`.
+  * Odpowiedź modelu jest wymuszona schematem (`responseMimeType: application/json` + `responseSchema`), więc zawsze da się ją sparsować.
+  * Historia wyboru (21.11.2026): pierwotnie Gemma 4. `gemma-4-31b-it` odpowiadał w 70–120 s i często zwracał 503; `gemma-4-26b-a4b-it` z minimalnym „myśleniem” — ok. 2 s, ale dużo 503 w godzinach szczytu. Zespół przeszedł na Gemini 3.5 Flash-Lite.
+  * Chwilowe przeciążenie (HTTP 500/503 „high demand”) jest ponawiane na **tym samym** modelu z odstępami 1,5 / 4 / 8 s — to nie jest przełączanie modeli.
+  * Klucz API tworzymy w AI Studio w **osobnym projekcie Google Cloud bez płatności** (projekt Firebase na planie Blaze ma płatność, więc klucz z niego przeszedłby na płatny tier). Projekt z płatnością przedpłaconą i zerowym saldem zwraca HTTP 402 („prepayment credits are depleted”) dla wszystkich modeli.
 * **Wywołania wyłącznie z Cloud Functions** — klucz API nigdy nie trafia do przeglądarki. Dostawca schowany za interfejsem `LlmProvider` (w produkcji: model on-premise, np. Bielik / PLLuM).
-* **Brak przełączania na inne modele.** Gdy API zwróci błąd limitu (HTTP 429) lub wyczerpanie zasobów, UI wyświetla komunikat: *„Wyczerpano dostępne zasoby asystenta AI. Spróbuj ponownie później.”* — bez fallbacku.
+* **Brak przełączania na inne modele w trakcie działania** (jeden skonfigurowany model). Gdy API zwróci błąd limitu (HTTP 429) lub wyczerpanie zasobów, UI wyświetla komunikat: *„Wyczerpano dostępne zasoby asystenta AI. Spróbuj ponownie później.”* — bez fallbacku.
 * **Rola wyłącznie doradcza i wspierająca:** AI **nigdy** nie wystawia oceny pracownika ani nie podejmuje decyzji kadrowych.
 * **Dane osobowe:** prototyp działa na danych fikcyjnych i **nie stosuje pseudonimizacji**. W dokumentacji dla jury wskazujemy wymóg produkcyjny: pseudonimizacja promptów lub model on-premise + umowa powierzenia.
 
@@ -25,7 +29,11 @@
    * Model kompetencji MC (`model/model-kompetencji.xlsx`).
    * *Nie tworzymy własnego FAQ* — asystent cytowałby nasz tekst jak źródło prawa. Praktyczne wyjaśnienia i przykłady (np. obliczanie terminów) czerpiemy z poradników KPRM.
 2. **Cytowanie źródeł (Obowiązkowe):** Każda odpowiedź musi zawierać precyzyjną identyfikację źródła (np. *„Źródło: § 11 ust. 1 pkt 4 Rozporządzenia PRM z 4 kwietnia 2016 r. (Dz. U. poz. 470)”* lub *„Źródło: Poradnik KPRM – Oceny okresowe, s. 13”*).
-3. **Walidacja cytatów w kodzie:** model zwraca odpowiedź wraz z listą cytatów w ustrukturyzowanym formacie; Cloud Function sprawdza, czy każdy cytat odpowiada metadanym (`source`, `unit`, `page`) fragmentów faktycznie pobranych z indeksu. Cytat niezgodny → odpowiedź odrzucona i zastąpiona komunikatem odmowy.
+3. **Walidacja cytatów w kodzie:** model zwraca odpowiedź wraz z listą cytatów `{fragment, unit, page, quote}`; Cloud Function sprawdza każdy cytat względem fragmentów faktycznie pobranych z indeksu:
+   * fragment musi być na liście pobranych,
+   * `quote` musi występować we fragmencie (nagłówek + treść, czyli dokładnie to, co widział model) **dosłownie, słowo po słowie**. Dopasowanie ignoruje wielkość liter, cudzysłowy, myślniki, interpunkcję i oznaczenia punktów („a)”, „1)”); toleruje jedną literówkę w słowie 6+ liter oraz słowa porozrywane spacjami przez ekstrakcję PDF („u rzędu”) — wtedy litery muszą zgadzać się co do joty. Pominięcia `[...]` / `…` są dozwolone, ale każda część musi wystąpić w źródle w tej samej kolejności,
+   * cytat bez `quote` musi mieć `unit` i `page` zgodne z metadanymi fragmentu.
+   Jednostka i strona pokazywane użytkownikowi **zawsze pochodzą z metadanych indeksu** (model może jedynie doprecyzować punkt, np. „§ 11 ust. 1 pkt 4” w fragmencie „§ 11 ust. 1”). Jeśli model błędnie opisze jednostkę, ale cytat jest dosłowny — przyjmujemy cytat z jednostką z indeksu. Każda inna niezgodność → odpowiedź odrzucona i zastąpiona komunikatem odmowy.
 4. **Polityka anty-halucynacyjna (Fallback):** Jeśli wynik wyszukiwania jest poniżej progu trafności albo w pobranych fragmentach nie ma odpowiedzi, asystent **musi wprost odpowiedzieć**, że brakuje informacji w udostępnionej bazie wiedzy (np. *„W udostępnionej bazie wiedzy nie znalazłem informacji na ten temat. Proszę skonsultować tę kwestię z komórką kadr (HR).”*) — zakaz zgadywania i dopowiadania!
 5. **Kontekstowość:** do każdego pytania funkcja dołącza krótki kontekst ekranu: ścieżka (A/B), arkusz (B/C), bieżący krok steppera, status oceny — **bez ocen cząstkowych**. Kontekst trafia do promptu, nie do zapytania wyszukiwania.
 

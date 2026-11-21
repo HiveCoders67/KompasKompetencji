@@ -11,7 +11,7 @@
     "typecheck": "npm run typecheck -w packages/domain && npm run typecheck -w functions && npm run typecheck -w apps/web",
     "test:rules": "firebase emulators:exec --only firestore --project demo-kompas \"npm run test:rules -w functions\"",
     "emulators": "npm run build -w functions && firebase emulators:start --project demo-kompas",
-    "kb:build": "python3 knowledge/scripts/build_competencies.py && npm run demo-osp -w packages/domain && python3 knowledge/scripts/build_index.py",
+    "kb:build": "node knowledge/scripts/run-python.mjs knowledge/scripts/build_competencies.py && npm run demo-osp -w packages/domain && node knowledge/scripts/run-python.mjs knowledge/scripts/build_index.py",
     "seed:emulator": "npm run seed:emulator -w functions",
     "seed:prod": "npm run seed:prod -w functions",
     "deploy": "npm run build && firebase deploy"

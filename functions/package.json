@@ -12,8 +12,8 @@
     "test": "vitest run",
     "test:rules": "vitest run --config vitest.rules.config.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "seed:emulator": "FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 GCLOUD_PROJECT=demo-kompas tsx src/seedScript.ts",
-    "seed:prod": "GCLOUD_PROJECT=kompaskompetencji tsx src/seedScript.ts",
+    "seed:emulator": "tsx src/seedScript.ts emulator",
+    "seed:prod": "tsx src/seedScript.ts prod",
     "eval:assistant": "tsx scripts/eval-assistant.ts"
   },
   "dependencies": {

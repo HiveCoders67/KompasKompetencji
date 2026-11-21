@@ -16,7 +16,7 @@ Prototyp aplikacji webowej wspierającej przełożonych w służbie cywilnej w p
 - **Eksport PDF** w układzie urzędowych arkuszy.
 
 ## Technologie
-React + Vite + TypeScript · Tailwind v4 · Firebase (Auth, Firestore, Cloud Functions, Hosting) · Gemma 4 (Gemini API, darmowy tier) · BM25 (minisearch) · @react-pdf/renderer · Vitest.
+React + Vite + TypeScript · Tailwind v4 · Firebase (Auth, Firestore, Cloud Functions, Hosting) · Gemini 3.5 Flash-Lite (Gemini API, darmowy tier) · BM25 (minisearch) · @react-pdf/renderer · Vitest.
 
 ## Struktura repozytorium
 | Katalog | Zawartość |

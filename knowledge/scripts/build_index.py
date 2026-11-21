@@ -10,7 +10,7 @@ hyphenation, editorial footnotes of the uniform text) and splits documents into 
   - KPRM guides                     → section × printed page,
   - MC competency model             → competency × indicator (from packages/domain/data/competencies.json).
 
-Requires: python3 with `pypdf` (pip install pypdf). Usage: python3 knowledge/scripts/build_index.py
+Requires: python3 with `pypdf` (pip install pypdf). Usage: npm run kb:build (or python3 knowledge/scripts/build_index.py)
 """
 import html
 import json

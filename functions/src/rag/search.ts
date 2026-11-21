@@ -85,6 +85,8 @@ const SYNONYMS: [RegExp, string][] = [
   [/trójk|3 pkt|3 punkt/i, 'ocena cząstkowa 3 punktów'],
   [/nowy pracownik|nowo zatrudnion|pierwsz\w* ocen/i, 'pierwsza ocena służba przygotowawcza'],
   [/kierownik|naczelnik|kieruj/i, 'bezpośrednim kierowaniu pracownikami'],
+  [/roczn|coroczn|ewaluacj/i, 'ocena okresowa'],
+  [/punkt|skal/i, 'skala ocen punkty ogólny poziom spełniania kryteriów'],
 ];
 export const expandQuery = (q: string) => [q, ...SYNONYMS.filter(([re]) => re.test(q)).map(([, add]) => add)].join(' ');
 
