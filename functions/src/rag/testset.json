@@ -1,0 +1,15 @@
+{
+  "description": "Assistant test set (docs/03 § 2.A). `units` = at least one of these must be retrieved (top 8) and cited; `refuse` = the assistant must answer with the refusal message. Run offline: npm test -w functions (retrieval); live: npm run eval:assistant -w functions (needs GEMINI_API_KEY).",
+  "cases": [
+    { "id": "avg58_one", "question": "Pracownik ma średnią 5,8 z oceny okresowej, ale dostał 1 punkt za komunikację. Czy ocena jest pozytywna?", "path": "B", "expect": "NEGATYWNA", "units": [["ROZP_2016", "§ 11 ust. 1"], ["ROZP_2016", "załącznik nr 4 (arkusz C), przypis 11"], ["ROZP_2016", "załącznik nr 3 (arkusz B), przypis 11"]] },
+    { "id": "exempt_exam", "question": "Nowy pracownik został zwolniony ze służby przygotowawczej przez Dyrektora Generalnego. Czy musi zdawać egzamin?", "path": "A", "expect": "TAK", "units": [["USTAWA", "art. 36 ust. 8"]] },
+    { "id": "first_35557", "question": "Pracownik w pierwszej ocenie dostał jedną trójkę, trzy piątki i jedną siódemkę. Zdał egzamin i złożył sprawozdanie w terminie. Jaki będzie wynik?", "path": "A", "expect": "POZYTYWNA", "units": [["ROZP_2015", "§ 10 ust. 1"]] },
+    { "id": "sick44", "question": "Pracownik na ocenie okresowej był na L4 przez 44 dni bez przerwy. Co z terminem oceny?", "path": "B", "expect": "44", "units": [["USTAWA", "art. 81 ust. 7"]] },
+    { "id": "negative_sick", "question": "Pracownik dostał ocenę negatywną i był potem 2 miesiące na zwolnieniu. Czy termin ponownej oceny się wydłuża?", "path": "B", "expect": "NIE", "units": [["PORADNIK_OO", null], ["USTAWA", "art. 81 ust. 7"]] },
+    { "id": "objection", "question": "Ile dni ma pracownik na złożenie sprzeciwu od oceny okresowej i do kogo?", "path": "B", "expect": "7 dni", "units": [["USTAWA", "art. 83 ust. 1"]] },
+    { "id": "form_b", "question": "Kiedy stosuje się arkusz B, a kiedy arkusz C?", "path": "B", "expect": "kierowaniu", "units": [["ROZP_2016", "§ 3 ust. 3"], ["ROZP_2016", "§ 3 ust. 4"]] },
+    { "id": "iprz", "question": "Czy wnioski do indywidualnego programu rozwoju zawodowego są obowiązkowe w arkuszu?", "path": "B", "expect": "", "units": [["ROZP_2016", "załącznik nr 4 (arkusz C), przypis 13"], ["ROZP_2016", "załącznik nr 3 (arkusz B), przypis 13"], ["ROZP_2016", "§ 11 ust. 1"]] },
+    { "id": "report_term", "question": "W jakim terminie pracownik w służbie przygotowawczej składa sprawozdanie do pierwszej oceny?", "path": "A", "expect": "", "units": [["ROZP_2015", "§ 5 ust. 1"], ["ROZP_2015", "§ 6 ust. 1"], ["ROZP_2015", "§ 4 ust. 1"]] },
+    { "id": "out_of_scope", "question": "Jaki jest wymiar urlopu na żądanie w Kodeksie pracy?", "path": null, "refuse": true }
+  ]
+}

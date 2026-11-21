@@ -1,0 +1,15 @@
+node_modules
+dist
+.env
+.env.local
+*.log
+.firebase
+
+# klucze kont serwisowych — nigdy do repo
+*firebase-adminsdk*.json
+service-account*.json
+.firebaserc.local
+
+# Cloud Functions secrets for the emulator
+.secret.local
+**/.secret.local

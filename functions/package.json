@@ -1,0 +1,30 @@
+{
+  "name": "@kompas/functions",
+  "private": true,
+  "version": "0.2.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "vitest run",
+    "test:rules": "vitest run --config vitest.rules.config.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "seed:emulator": "FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 GCLOUD_PROJECT=demo-kompas tsx src/seedScript.ts",
+    "seed:prod": "GCLOUD_PROJECT=kompaskompetencji tsx src/seedScript.ts",
+    "eval:assistant": "tsx scripts/eval-assistant.ts"
+  },
+  "dependencies": {
+    "firebase-admin": "^14.5.1",
+    "firebase-functions": "^7.0.0"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^6.0.0",
+    "@kompas/domain": "*",
+    "esbuild": "^0.27.0",
+    "firebase": "^13.4.0",
+    "minisearch": "^7.2.0"
+  }
+}

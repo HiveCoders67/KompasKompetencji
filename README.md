@@ -25,6 +25,36 @@ React + Vite + TypeScript · Tailwind v4 · Firebase (Auth, Firestore, Cloud Fun
 | `knowledge/sources/` | Źródła: ustawa o służbie cywilnej (t.j. Dz. U. 2026 poz. 590), rozporządzenia z 2015 i 2016 r., poradniki KPRM, wzory arkuszy, model kompetencji |
 | `demo-data/osp/` | Trzy opisy stanowisk pracy MC używane w scenariuszach demo |
 
+## Uruchomienie lokalne
+
+Wymagania: Node 22, Java (emulatory Firebase), Python 3 + `pypdf` (tylko do przebudowy indeksu RAG).
+
+```bash
+npm install
+npm run emulators                 # Auth + Firestore + Functions (projekt demo-kompas)
+# w drugim terminalu:
+VITE_FIREBASE_USE_EMULATOR=true VITE_FIREBASE_PROJECT_ID=demo-kompas npm run dev
+```
+
+Na ekranie logowania kliknij **„Przywróć dane demo”**, a potem jeden z przycisków „Wejdź jako…”. Asystenci AI na emulatorze wymagają klucza w `functions/.secret.local` (`GEMINI_API_KEY=…`).
+
+| Polecenie | Co robi |
+| --- | --- |
+| `npm test` | testy domeny (wynik, sugestia, terminy, parser OSP, kodek), funkcji (RAG, walidacja cytatów) i UI/PDF |
+| `npm run test:rules` | testy reguł Firestore na emulatorze |
+| `npm run typecheck` | TypeScript we wszystkich pakietach |
+| `npm run kb:build` | przebudowa `competencies.json`, profili demo OSP i indeksu RAG z `knowledge/sources/` |
+| `GEMINI_API_KEY=… npm run eval:assistant -w functions` | zestaw testów asystenta na żywym modelu (po każdej zmianie promptu lub indeksu) |
+| `npx tsx functions/scripts/smoke-emulator.ts` | test end-to-end na emulatorach (reguły, `completeEvaluation`, trigger trackingu) |
+
+## Wdrożenie (Firebase, plan Blaze)
+
+```bash
+npx firebase functions:secrets:set GEMINI_API_KEY   # klucz z Google AI Studio (darmowy tier)
+npm run deploy                                      # build web + functions, reguły, indeksy, hosting
+GOOGLE_APPLICATION_CREDENTIALS=<klucz-konta-serwisowego>.json npm run seed:prod
+```
+
 ## Dokumentacja
 1. [Kontekst i wymagania](docs/01_context_and_requirements.md)
 2. [Logika domenowa i przepisy](docs/02_domain_logic_and_rules.md)

@@ -1,0 +1,111 @@
+rules_version = '2';
+// RBAC — docs/firebase/firestore_structure.md § 8.
+// Roles and office come ONLY from custom claims (request.auth.token.roles / officeId);
+// `*Id` fields are DocumentReferences compared with document paths.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null && request.auth.token.officeId is string; }
+    function hasRole(r) { return signedIn() && request.auth.token.roles is list && r in request.auth.token.roles; }
+    function userRef(uid) { return /databases/$(database)/documents/users/$(uid); }
+    function me() { return userRef(request.auth.uid); }
+    function myOffice(data) { return data.officeId == request.auth.token.officeId; }
+    function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
+    function locked(status) { return status in ['COMPLETED', 'ACKNOWLEDGED']; }
+
+    // --- users: own profile or HR_ADMIN of the same office; written only by Admin SDK (roles!) ---
+    match /users/{userId} {
+      // own profile (also when the document does not exist yet) or HR_ADMIN of the same office
+      allow read: if signedIn() && (request.auth.uid == userId || (hasRole('HR_ADMIN') && resource != null && myOffice(resource.data)));
+      allow write: if false;
+    }
+
+    // --- competencies: global dictionary, seeded by Admin SDK ---
+    match /competencies/{code} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // --- employees: assigned supervisor, department head, HR_ADMIN ---
+    match /employees/{employeeId} {
+      allow read: if signedIn() && myOffice(resource.data) && (
+        resource.data.supervisorId == me() || resource.data.departmentHeadId == me() || hasRole('HR_ADMIN'));
+      // the supervisor may edit the OSP and absences, never assignment / employment data
+      allow update: if hasRole('SUPERVISOR') && myOffice(resource.data) && resource.data.supervisorId == me()
+        && changed().hasOnly(['osp', 'absences']);
+      allow create, delete: if false;
+    }
+
+    // --- evaluations: never HR_ADMIN (it reads evaluation_tracking only — GDPR) ---
+    match /evaluations/{evaluationId} {
+      function isSupervisor() { return hasRole('SUPERVISOR') && myOffice(resource.data) && resource.data.supervisorId == me(); }
+      function isHead() {
+        return hasRole('DEPARTMENT_HEAD') && myOffice(resource.data) && resource.data.departmentHeadId == me()
+          && resource.data.type == 'FIRST_EVALUATION';
+      }
+
+      allow read: if isSupervisor() || isHead();
+
+      // create only for an employee the caller supervises; result fields empty
+      allow create: if hasRole('SUPERVISOR')
+        && myOffice(request.resource.data)
+        && request.resource.data.supervisorId == me()
+        && get(request.resource.data.employeeId).data.supervisorId == me()
+        && get(request.resource.data.employeeId).data.officeId == request.auth.token.officeId
+        && request.resource.data.status == 'DRAFT'
+        && request.resource.data.summary == null
+        && request.resource.data.departmentHeadApprovedAt == null
+        && request.resource.data.completedAt == null;
+
+      // editing before completion: no summary / approval / identity changes; COMPLETED only via completeEvaluation
+      allow update: if isSupervisor() && !locked(resource.data.status)
+        && !changed().hasAny(['summary', 'departmentHeadApprovedAt', 'completedAt', 'officeId', 'supervisorId', 'employeeId', 'type', 'departmentHeadId'])
+        && !locked(request.resource.data.status);
+
+      // after COMPLETED: only → ACKNOWLEDGED with deadlines.acknowledgedAt (and the objection deadline)
+      allow update: if isSupervisor() && resource.data.status == 'COMPLETED'
+        && changed().hasOnly(['status', 'deadlines', 'updatedAt'])
+        && request.resource.data.status == 'ACKNOWLEDGED'
+        && request.resource.data.deadlines.diff(resource.data.deadlines).affectedKeys().hasOnly(['acknowledgedAt', 'objectionDeadline'])
+        && request.resource.data.deadlines.acknowledgedAt is timestamp;
+
+      // department head (path A): only the approval, after the final talk
+      allow update: if isHead() && !locked(resource.data.status)
+        && resource.data.status == 'FINAL_TALK_DONE'
+        && changed().hasOnly(['departmentHeadApprovedAt', 'updatedAt'])
+        && request.resource.data.departmentHeadApprovedAt == request.time;
+
+      allow delete: if isSupervisor() && resource.data.status == 'DRAFT';
+    }
+
+    // --- evaluation_tracking: HR_ADMIN and the supervisor; written only by Cloud Functions ---
+    match /evaluation_tracking/{evaluationId} {
+      allow read: if signedIn() && myOffice(resource.data) && (hasRole('HR_ADMIN') || resource.data.supervisorId == me());
+      allow write: if false;
+    }
+
+    // --- reminders: created by HR_ADMIN; recipient reads and marks as READ ---
+    match /reminders/{reminderId} {
+      allow read: if signedIn() && myOffice(resource.data) && (resource.data.recipientUserId == me() || hasRole('HR_ADMIN'));
+      allow create: if hasRole('HR_ADMIN') && myOffice(request.resource.data)
+        && request.resource.data.sentByUserId == me()
+        && request.resource.data.status == 'SENT'
+        && request.resource.data.type == 'MANUAL_HR';
+      allow update: if signedIn() && myOffice(resource.data) && resource.data.recipientUserId == me()
+        && changed().hasOnly(['status']) && request.resource.data.status == 'READ';
+      allow delete: if false;
+    }
+
+    // --- ai_sessions: owner only; assistant messages written by Cloud Functions (after citation validation) ---
+    match /ai_sessions/{sessionId} {
+      allow read: if signedIn() && myOffice(resource.data) && resource.data.userId == me();
+      allow create: if signedIn() && myOffice(request.resource.data) && request.resource.data.userId == me();
+      allow update, delete: if false;
+
+      match /messages/{messageId} {
+        allow read: if signedIn() && get(/databases/$(database)/documents/ai_sessions/$(sessionId)).data.userId == me();
+        allow write: if false;
+      }
+    }
+  }
+}
