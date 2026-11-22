@@ -1,6 +1,7 @@
 import * as Tabs from '@radix-ui/react-tabs';
 import { useEffect, useRef, useState } from 'react';
-import type { AiMessage, Evaluation, StepId } from '@kompas/domain';
+import { previewResult, type AiMessage, type Evaluation, type StepId } from '@kompas/domain';
+import { stepLock } from '../pages/steps/progress';
 import { askFormalFn, askInterviewFn, callableError, type InterviewTask } from '../data/repo';
 import { Alert } from './ui';
 
@@ -142,6 +143,19 @@ const TASKS: { task: InterviewTask; label: string; insert?: 'justification' | 'd
   { task: 'DIFFICULT_TALK', label: 'Jak przeprowadzić trudną rozmowę' },
 ];
 
+type DraftField = 'justification' | 'developmentPlan';
+
+/**
+ * Form fields an AI draft may fill right now. The justification and the development plan live in the
+ * „Rozmowa oceniająca i wynik” step, so their drafts are offered (and inserted) only there, once the step is unlocked,
+ * and only for a field the step shows (a negative first evaluation has no development plan).
+ */
+export function draftTargets(ev: Evaluation, step: StepId): ReadonlySet<DraftField> {
+  if (step !== 'final' || stepLock(ev, 'final')) return new Set();
+  const negativeFirst = ev.type === 'FIRST_EVALUATION' && previewResult(ev)?.finalResult === 'NEGATIVE';
+  return new Set<DraftField>(negativeFirst ? ['justification'] : ['justification', 'developmentPlan']);
+}
+
 /** Conversation entry: the user's request (typed question or the chosen task) or the assistant's answer. */
 type InterviewItem = { kind: 'user'; id: string; text: string } | { kind: 'answer'; task: InterviewTask; message: AiMessage; inserted?: boolean };
 
@@ -183,7 +197,9 @@ function InterviewChat({ ev, step, update, readOnly }: { ev: Evaluation; step: S
     }
   };
 
-  const insert = (idx: number, field: 'justification' | 'developmentPlan') => {
+  const targets = draftTargets(ev, step);
+  const tasks = TASKS.filter((t) => !t.insert || targets.has(t.insert));
+  const insert = (idx: number, field: DraftField) => {
     const it = items[idx];
     if (it.kind !== 'answer') return;
     update((e) => ({ ...e, texts: { ...e.texts, [field]: it.message.content, [`${field}AiDraft`]: true } }));
@@ -201,7 +217,7 @@ function InterviewChat({ ev, step, update, readOnly }: { ev: Evaluation; step: S
           aria-controls="interview-tasks"
           onClick={() => setTasksOpen((o) => !o)}
         >
-          {tasksOpen ? 'Ukryj podpowiedzi' : `Pokaż podpowiedzi (${TASKS.length})`}
+          {tasksOpen ? 'Ukryj podpowiedzi' : `Pokaż podpowiedzi (${tasks.length})`}
           <svg className="show-more-chevron" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M3.5 6L8 10.5 12.5 6" />
           </svg>
@@ -209,12 +225,15 @@ function InterviewChat({ ev, step, update, readOnly }: { ev: Evaluation; step: S
         <div id="interview-tasks" className="sf-collapse" data-collapsed={!tasksOpen} aria-hidden={!tasksOpen} inert={!tasksOpen}>
           <div className="sf-collapse-inner">
             <div className="flex flex-wrap gap-2 pt-s2">
-              {TASKS.map((t) => (
+              {tasks.map((t) => (
                 <button key={t.task} className="btn btn-secondary btn-sm" disabled={!!busy} onClick={() => run(t.task)}>
                   {busy === t.task ? 'Generowanie…' : t.label}
                 </button>
               ))}
             </div>
+            {targets.size === 0 && (
+              <p className="hint mt-s2 text-xs">Szkic uzasadnienia i wniosków rozwojowych będzie dostępny w kroku „Rozmowa oceniająca i wynik”.</p>
+            )}
           </div>
         </div>
       </div>
@@ -228,10 +247,13 @@ function InterviewChat({ ev, step, update, readOnly }: { ev: Evaluation; step: S
               <p className="whitespace-pre-wrap">{it.message.content}</p>
               {def?.insert && (
                 <div className="mt-s2 flex items-center gap-s2">
-                  <button className="btn btn-sm" disabled={readOnly || it.inserted} onClick={() => insert(i, def.insert!)}>
+                  {/* a draft made earlier can be inserted only while its field is on screen */}
+                  <button className="btn btn-sm" disabled={readOnly || it.inserted || !targets.has(def.insert)} onClick={() => insert(i, def.insert!)}>
                     {it.inserted ? 'Wstawiono' : 'Wstaw do formularza'}
                   </button>
-                  <span className="hint text-xs">Szkic wygenerowany przez AI — wymaga weryfikacji</span>
+                  <span className="hint text-xs">
+                    {targets.has(def.insert) || it.inserted ? 'Szkic wygenerowany przez AI — wymaga weryfikacji' : 'Wstawisz go w kroku „Rozmowa oceniająca i wynik”.'}
+                  </span>
                 </div>
               )}
             </div>

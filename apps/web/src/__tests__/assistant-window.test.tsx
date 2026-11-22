@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { useState } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { DEMO_EMPLOYEES, buildNewEvaluation } from '@kompas/domain';
-import { AssistantPanel } from '../components/AssistantPanel';
+import { AssistantPanel, draftTargets } from '../components/AssistantPanel';
 
 const ev = buildNewEvaluation({ id: 'x', employee: DEMO_EMPLOYEES[0], supervisor: { uid: 'sup_dc', displayName: 'M Z' }, now: '2026-11-21T08:00:00.000Z' });
 
@@ -37,5 +37,29 @@ describe('Floating AI assistant', () => {
 
     await act(async () => fireEvent.click(fab));
     expect((screen.getByLabelText('Pytanie do asystenta formalnego') as HTMLInputElement).value).toBe('Ile dni na sprzeciw?');
+  });
+});
+
+describe('AI drafts of the justification / development plan — only in the step that has those fields', () => {
+  const started = { ...ev, status: 'INITIAL_TALK_DONE' as const };
+  const scored = { ...started, criteriaAssessments: started.criteriaAssessments.map((c) => ({ ...c, finalScore: 5 as const })) };
+
+  it('are not offered before „Rozmowa oceniająca i wynik”', () => {
+    expect(draftTargets(scored, 'assessment').size).toBe(0);
+    expect(draftTargets(scored, 'start').size).toBe(0);
+  });
+  it('are not offered while that step is still locked (criteria not scored)', () => {
+    expect(draftTargets(started, 'final').size).toBe(0);
+  });
+  it('are offered in the unlocked step', () => {
+    expect([...draftTargets(scored, 'final')]).toEqual(['justification', 'developmentPlan']);
+  });
+  it('the task buttons follow the step', async () => {
+    const r = render(<AssistantPanel open onOpenChange={() => undefined} ev={scored} step="assessment" update={() => undefined} readOnly={false} />);
+    expect(r.queryByRole('button', { name: 'Szkic wniosków rozwojowych (IPRZ)' })).toBeNull();
+    expect(r.queryByRole('button', { name: 'Szkic uzasadnienia' })).toBeNull();
+    expect(r.getByRole('button', { name: 'Agenda i pytania do rozmowy' })).toBeTruthy();
+    r.rerender(<AssistantPanel open onOpenChange={() => undefined} ev={scored} step="final" update={() => undefined} readOnly={false} />);
+    expect(r.getByRole('button', { name: 'Szkic wniosków rozwojowych (IPRZ)' })).toBeTruthy();
   });
 });
