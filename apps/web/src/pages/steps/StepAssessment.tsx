@@ -19,6 +19,9 @@ import {
 import { Alert, Card } from '../../components/ui';
 import type { StepProps } from './types';
 
+/** Radio value for „brak podstaw do oceny” (stored as level = null). */
+const NO_BASIS = 'none';
+
 export function StepAssessment({ ev, update, readOnly, next }: StepProps) {
   const [open, setOpen] = useState<string | null>(ev.criteriaAssessments.find((c) => c.finalScore === null)?.competencyId ?? null);
   const blocked = ev.status === 'DRAFT' || (ev.type === 'FIRST_EVALUATION' && ev.status === 'INITIAL_TALK_DONE');
@@ -97,10 +100,13 @@ export function StepAssessment({ ev, update, readOnly, next }: StepProps) {
 
                       {ia.selected && (
                         <div className="mt-s3 pl-8">
+                          {/* „Brak podstaw” is one more option of the same group, so it is selected — and looks selected — like a behaviour card */}
                           <RadioGroup.Root
                             className={`grid gap-2 ${behaviors.length === 5 ? 'grid-cols-5' : 'grid-cols-3'}`}
-                            value={ia.level === null ? '' : String(ia.level)}
-                            onValueChange={(v) => patchIndicator(c.competencyId, ia.indicatorId, (i) => ({ ...i, level: Number(v) as Score }))}
+                            value={ia.level === null ? NO_BASIS : String(ia.level)}
+                            onValueChange={(v) =>
+                              patchIndicator(c.competencyId, ia.indicatorId, (i) => ({ ...i, level: v === NO_BASIS ? null : (Number(v) as Score) }))
+                            }
                             disabled={readOnly || blocked}
                             aria-label={`Zaobserwowane zachowanie: ${ind.label}`}
                           >
@@ -112,18 +118,18 @@ export function StepAssessment({ ev, update, readOnly, next }: StepProps) {
                                 <span className="mt-1 block">{b.description}</span>
                               </RadioGroup.Item>
                             ))}
+                            <RadioGroup.Item value={NO_BASIS} className="radio-card radio-card-none col-span-full !py-s2 !px-s3 text-[13px]">
+                              <span className="flex items-center gap-s2">
+                                <span className="radio-card-mark" aria-hidden="true" />
+                                <span className="font-semibold">Brak podstaw do oceny</span>
+                                <span className="hint text-xs">
+                                  {ia.level === null
+                                    ? '— wskaźnik pominięty w sugestii; wybierz opis zachowania, jeśli je zaobserwowano'
+                                    : '— nie było okazji zaobserwować zachowania'}
+                                </span>
+                              </span>
+                            </RadioGroup.Item>
                           </RadioGroup.Root>
-                          <div className="mt-2 flex items-center gap-s3">
-                            <button
-                              className={`btn btn-sm ${ia.level === null ? 'btn-secondary' : 'btn-ghost'}`}
-                              disabled={readOnly || blocked}
-                              aria-pressed={ia.level === null}
-                              onClick={() => patchIndicator(c.competencyId, ia.indicatorId, (i) => ({ ...i, level: null }))}
-                            >
-                              Brak podstaw do oceny
-                            </button>
-                            <span className="hint text-xs">{ia.level === null ? 'Brak podstaw — wskaźnik pominięty w sugestii (wybierz opis zachowania, jeśli je zaobserwowano).' : ''}</span>
-                          </div>
                           <textarea
                             className="textarea mt-s3 text-sm"
                             rows={2}

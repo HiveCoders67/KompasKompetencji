@@ -3,6 +3,7 @@ import {
   LEVEL_LABELS,
   RESULT_LABELS,
   afterNegativeDeadlines,
+  blockingIssues,
   completionIssues,
   formatAverage,
   formatPL,
@@ -25,7 +26,8 @@ export function StepComplete({ ev, employee, readOnly, isSupervisor, goTo, flush
   const [ackDate, setAckDate] = useState<DateOnly | null>(today());
   const isA = ev.type === 'FIRST_EVALUATION';
   const locked = isLocked(ev);
-  const issues = locked ? [] : completionIssues(ev, employee);
+  // warnings (e.g. a late initial talk) are shown in step 1 and never block completion
+  const issues = locked ? [] : blockingIssues(completionIssues(ev, employee, today()));
   const approvalIssue = issues.find((i) => i.step === 'complete');
   const blocking = issues.filter((i) => i.step !== 'complete');
   const steps = stepsFor(ev);

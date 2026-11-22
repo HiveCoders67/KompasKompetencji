@@ -3,12 +3,16 @@ import {
   COMPETENCY_BY_CODE,
   FORM_SHORT,
   formatPL,
+  blockingIssues,
+  firstEvaluationDeadlines,
   initialTalkIssues,
+  isBlocking,
   statusRank,
   today,
+  type DeadlineField,
 } from '@kompas/domain';
 import { Alert, Card, DeadlineBadge, Field } from '../../components/ui';
-import { DateInput } from '../../components/DateInput';
+import { DateInput, DateRangeInput } from '../../components/DateInput';
 import { downloadEvaluationPdf } from '../../pdf/generate';
 import type { StepProps } from './types';
 
@@ -16,9 +20,37 @@ export function StepStart({ ev, employee, update, readOnly, next }: StepProps) {
   const isA = ev.type === 'FIRST_EVALUATION';
   const d = ev.deadlines;
   const done = statusRank(ev) >= 1;
-  const issues = initialTalkIssues(ev, employee);
+  const now = today();
+  const issues = initialTalkIssues(ev, employee, now);
+  const blocking = blockingIssues(issues);
   const [pdfBusy, setPdfBusy] = useState(false);
-  const setDeadline = (key: keyof typeof d, value: string | null) => update((e) => ({ ...e, deadlines: { ...e.deadlines, [key]: value } }));
+  // „missing value” messages wait until the field is touched or the user tries to confirm; value errors show at once
+  const [touched, setTouched] = useState<Set<DeadlineField>>(new Set());
+  const [submitted, setSubmitted] = useState(false);
+  const touch = (f: DeadlineField) => setTouched((t) => (t.has(f) ? t : new Set(t).add(f)));
+  const visible = (f: DeadlineField) => (done ? [] : issues.filter((i) => i.field === f && (!i.missing || submitted || touched.has(f))));
+  const tone = (f: DeadlineField) => {
+    const v = visible(f);
+    return v.length === 0 ? false : v.some(isBlocking) ? 'error' : 'warning';
+  };
+  const popupId = (f: DeadlineField) => (visible(f).length ? `issues-${f}` : undefined);
+  const otherIssues = issues.filter((i) => !i.field); // e.g. path B: form choice / criteria — no date field to attach to
+  // picker hints from the law (validation still reports typed values outside them)
+  const legal = isA ? firstEvaluationDeadlines(employee.hireDate) : null;
+  const notBeforeTalk = (bound: string | undefined) => (d.initialTalkDate && bound && d.initialTalkDate > bound ? d.initialTalkDate : bound);
+
+  const setDeadlines = (patch: Partial<typeof d>) => update((e) => ({ ...e, deadlines: { ...e.deadlines, ...patch } }));
+  const setDeadline = (key: keyof typeof d, value: string | null) => setDeadlines({ [key]: value });
+
+  const tryConfirm = () => {
+    if (blocking.length > 0) {
+      setSubmitted(true);
+      const first = blocking.find((i) => i.field)?.field;
+      if (first) document.getElementById(`field-${first}`)?.focus();
+      return;
+    }
+    confirm();
+  };
 
   const confirm = () =>
     update((e) => ({
@@ -67,8 +99,37 @@ export function StepStart({ ev, employee, update, readOnly, next }: StepProps) {
 
       <Card title="Terminy">
         <div className="grid grid-cols-2 gap-s5">
-          <Field label={isA ? 'Data rozmowy wstępnej' : 'Data rozmowy rozpoczynającej'} htmlFor="initialTalkDate" hint={<>Termin: <DeadlineBadge due={d.initialTalkDue} today={today()} done={!!d.initialTalkDate} /></>}>
-            <DateInput id="initialTalkDate" value={d.initialTalkDate} onChange={(v) => setDeadline('initialTalkDate', v)} disabled={readOnly || done} />
+          <Field
+            label={isA ? 'Data rozmowy wstępnej' : 'Data rozmowy rozpoczynającej'}
+            htmlFor="field-initialTalkDate"
+            issues={visible('initialTalkDate')}
+            issuesId={popupId('initialTalkDate')}
+            hint={
+              isA ? (
+                <>
+                  Najpóźniej <DeadlineBadge due={d.initialTalkDue} today={now} done={!!d.initialTalkDate} doneOn={d.initialTalkDate} /> · 21 dni od zatrudnienia
+                </>
+              ) : (
+                <>
+                  Termin: <DeadlineBadge due={d.initialTalkDue} today={now} done={!!d.initialTalkDate} doneOn={d.initialTalkDate} />
+                </>
+              )
+            }
+          >
+            <DateInput
+              id="field-initialTalkDate"
+              value={d.initialTalkDate}
+              onChange={(v) => {
+                touch('initialTalkDate');
+                setDeadline('initialTalkDate', v);
+              }}
+              disabled={readOnly || done}
+              min={isA ? employee.hireDate : undefined}
+              max={now}
+              reason={isA ? 'Od zatrudnienia do dziś — rozmowę zapisuje się po jej przeprowadzeniu' : 'Do dziś — rozmowę zapisuje się po jej przeprowadzeniu'}
+              invalid={tone('initialTalkDate')}
+              describedBy={popupId('initialTalkDate')}
+            />
           </Field>
           {!isA && (
             <div>
@@ -82,29 +143,65 @@ export function StepStart({ ev, employee, update, readOnly, next }: StepProps) {
           )}
           {isA && (
             <>
-              <Field label="Termin złożenia sprawozdania (od – do)" hint="Sprawozdanie obejmuje co najmniej 7 miesięcy pracy (§ 4 i § 6 rozp. z 2015 r.).">
-                <div className="flex items-center gap-2">
-                  <DateInput value={d.reportDueFrom} onChange={(v) => setDeadline('reportDueFrom', v)} disabled={readOnly || done} />
-                  <span>–</span>
-                  <DateInput value={d.reportDueTo} onChange={(v) => setDeadline('reportDueTo', v)} disabled={readOnly || done} />
-                </div>
+              <Field
+                label="Termin złożenia sprawozdania (od – do)"
+                htmlFor="field-reportDue"
+                issues={visible('reportDue')}
+                issuesId={popupId('reportDue')}
+                hint="Sprawozdanie obejmuje co najmniej 7 miesięcy pracy (§ 4 i § 6 rozp. z 2015 r.)."
+              >
+                <DateRangeInput
+                  idFrom="field-reportDue"
+                  from={d.reportDueFrom}
+                  to={d.reportDueTo}
+                  onChange={({ from, to }) => {
+                    touch('reportDue');
+                    setDeadlines({ reportDueFrom: from, reportDueTo: to });
+                  }}
+                  disabled={readOnly || done}
+                  min={notBeforeTalk(legal?.reportDueFrom)}
+                  max={legal?.evaluationWindowTo}
+                  invalid={tone('reportDue')}
+                  describedBy={popupId('reportDue')}
+                  labelFrom="Termin złożenia sprawozdania — od"
+                  labelTo="Termin złożenia sprawozdania — do"
+                  reason="Po upływie 8 mies. od zatrudnienia, z czasem na ocenę"
+                />
               </Field>
-              <Field label="Okres dokonania pierwszej oceny (od – do)" hint="Po upływie 8 miesięcy, nie później niż na miesiąc przed końcem umowy (art. 38 ust. 1 ustawy).">
-                <div className="flex items-center gap-2">
-                  <DateInput value={d.evaluationWindowFrom} onChange={(v) => setDeadline('evaluationWindowFrom', v)} disabled={readOnly || done} />
-                  <span>–</span>
-                  <DateInput value={d.evaluationWindowTo} onChange={(v) => update((e) => ({ ...e, deadlines: { ...e.deadlines, evaluationWindowTo: v, evaluationDueDate: v ?? e.deadlines.evaluationDueDate } }))} disabled={readOnly || done} />
-                </div>
+              <Field
+                label="Okres dokonania pierwszej oceny (od – do)"
+                htmlFor="field-evaluationWindow"
+                issues={visible('evaluationWindow')}
+                issuesId={popupId('evaluationWindow')}
+                hint="Po upływie 8 miesięcy, nie później niż na miesiąc przed końcem umowy (art. 38 ust. 1 ustawy)."
+              >
+                <DateRangeInput
+                  idFrom="field-evaluationWindow"
+                  from={d.evaluationWindowFrom}
+                  to={d.evaluationWindowTo}
+                  onChange={({ from, to }) => {
+                    touch('evaluationWindow');
+                    setDeadlines({ evaluationWindowFrom: from, evaluationWindowTo: to, evaluationDueDate: to ?? d.evaluationDueDate });
+                  }}
+                  disabled={readOnly || done}
+                  min={notBeforeTalk(legal?.evaluationWindowFrom)}
+                  max={legal?.evaluationWindowTo}
+                  invalid={tone('evaluationWindow')}
+                  describedBy={popupId('evaluationWindow')}
+                  labelFrom="Okres dokonania pierwszej oceny — od"
+                  labelTo="Okres dokonania pierwszej oceny — do"
+                  reason="Od 8 mies. od zatrudnienia do miesiąca przed końcem umowy"
+                />
               </Field>
             </>
           )}
         </div>
       </Card>
 
-      {!done && issues.length > 0 && (
-        <Alert tone="warning" title="Do uzupełnienia">
+      {!done && otherIssues.length > 0 && (
+        <Alert tone={otherIssues.some(isBlocking) ? 'warning' : 'info'} title="Do uzupełnienia">
           <ul className="list-disc pl-5">
-            {issues.map((i) => (
+            {otherIssues.map((i) => (
               <li key={i.message}>{i.message}</li>
             ))}
           </ul>
@@ -120,7 +217,8 @@ export function StepStart({ ev, employee, update, readOnly, next }: StepProps) {
             Dalej
           </button>
         ) : (
-          <button className="btn" onClick={confirm} disabled={readOnly || issues.length > 0}>
+          // stays clickable: with errors it reveals every field message and focuses the first invalid field
+          <button className="btn" onClick={tryConfirm} disabled={readOnly}>
             Potwierdzam przeprowadzenie rozmowy
           </button>
         )}

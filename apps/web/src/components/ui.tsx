@@ -41,14 +41,49 @@ export function Alert({ tone = 'info', title, children }: { tone?: Tone; title?:
   );
 }
 
-export function Field({ label, hint, children, htmlFor }: { label: string; hint?: ReactNode; children: ReactNode; htmlFor?: string }) {
+export function Field({
+  label,
+  hint,
+  children,
+  htmlFor,
+  issues,
+  issuesId,
+}: {
+  label: string;
+  hint?: ReactNode;
+  children: ReactNode;
+  htmlFor?: string;
+  /** Validation messages shown in a popup attached to this field. */
+  issues?: { message: string; severity?: 'warning' }[];
+  /** id of the popup (referenced by the inputs' aria-describedby). */
+  issuesId?: string;
+}) {
   return (
     <div>
       <label className="label" htmlFor={htmlFor}>
         {label}
       </label>
       {children}
+      {issues && issues.length > 0 && <FieldPopup id={issuesId} issues={issues} />}
       {hint && <p className="hint mt-1">{hint}</p>}
+    </div>
+  );
+}
+
+/** Popup bubble attached to a form field (arrow pointing at the input); red if any message blocks, otherwise amber. */
+export function FieldPopup({ id, issues }: { id?: string; issues: { message: string; severity?: 'warning' }[] }) {
+  const tone = issues.some((i) => i.severity !== 'warning') ? 'error' : 'warning';
+  return (
+    <div id={id} className={`field-popup field-popup-${tone}`} role={tone === 'error' ? 'alert' : 'status'}>
+      {issues.length === 1 ? (
+        <p>{issues[0].message}</p>
+      ) : (
+        <ul className="list-disc pl-4">
+          {issues.map((i) => (
+            <li key={i.message}>{i.message}</li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -67,11 +102,25 @@ export const StatusBadge = ({ status, type }: { status: EvaluationStatus; type: 
 );
 
 /** Deadline with a consistent status mapping (overdue → error, ≤ 14 days → warning). */
-export function DeadlineBadge({ due, today, done, label }: { due: DateOnly | null; today: DateOnly; done: boolean; label?: string }) {
+/**
+ * `doneOn` (date the action took place) refines `done`: a future date → „zaplanowane”, a date after `due` → „zrobione po terminie”.
+ */
+export function DeadlineBadge({ due, today, done, doneOn, label }: { due: DateOnly | null; today: DateOnly; done: boolean; doneOn?: DateOnly | null; label?: string }) {
   if (!due) return <span className="hint">—</span>;
-  const st = deadlineState(due, today, done);
-  const cls = { OVERDUE: 'badge-error', SOON: 'badge-warning', OK: 'badge-outline', DONE: 'badge-success' }[st];
-  const txt = { OVERDUE: 'po terminie', SOON: 'wkrótce', OK: '', DONE: 'zrobione' }[st];
+  const planned = !!doneOn && doneOn > today;
+  const st = deadlineState(due, today, done && !planned);
+  const late = st === 'DONE' && !!doneOn && doneOn > due;
+  const cls = late ? 'badge-warning' : { OVERDUE: 'badge-error', SOON: 'badge-warning', OK: 'badge-outline', DONE: 'badge-success' }[st];
+  const txt = late ? 'zrobione po terminie' : { OVERDUE: 'po terminie', SOON: 'wkrótce', OK: '', DONE: 'zrobione' }[st];
+  if (planned) {
+    return (
+      <span className="inline-flex items-center gap-2">
+        <span className="mono text-sm">{formatPL(due)}</span>
+        <span className={`badge ${doneOn! > due ? 'badge-error' : 'badge-outline'}`}>zaplanowane{doneOn! > due ? ' po terminie' : ''}</span>
+        {label && <span className="hint">{label}</span>}
+      </span>
+    );
+  }
   return (
     <span className="inline-flex items-center gap-2">
       <span className="mono text-sm">{formatPL(due)}</span>

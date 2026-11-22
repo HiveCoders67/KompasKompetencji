@@ -35,6 +35,7 @@ export function StepOsp({ ev, employee, update, setEmployee, readOnly, next, flu
 
   const additional = ev.criteriaAssessments.filter((c) => !c.isMandatory).map((c) => c.competencyId);
   const mandatory = MANDATORY_CRITERIA[ev.formType];
+  const allSuggestionsAdded = !!suggestions?.length && suggestions.every((s) => additional.includes(s.code));
   const formResolved = resolveForm(osp);
 
   const applyOsp = async (next: Osp) => {
@@ -192,24 +193,39 @@ export function StepOsp({ ev, employee, update, setEmployee, readOnly, next, flu
 
         {aiError && <Alert tone="error">{aiError}</Alert>}
         {suggestions && (
-          <div className="mb-s4 flex flex-col gap-s2">
-            <p className="label">Sugestie AI na podstawie zadań z OSP — wybór należy do Ciebie</p>
-            {suggestions.length === 0 && <p className="hint">Model nie zaproponował kryteriów dodatkowych.</p>}
-            {suggestions.map((s) => (
-              <div key={s.code} className="flex items-start justify-between gap-s3 rounded-lg border border-line p-s3">
-                <div>
-                  <p className="font-semibold">{s.name}</p>
-                  <p className="hint">{s.reason}</p>
-                </div>
-                <button
-                  className="btn btn-secondary btn-sm"
-                  disabled={readOnly || additional.includes(s.code) || additional.length >= MAX_ADDITIONAL_CRITERIA}
-                  onClick={() => toggleAdditional(s.code, true)}
-                >
-                  {additional.includes(s.code) ? 'Dodano' : 'Dodaj'}
-                </button>
+          // a suggestion collapses once its criterion is added (it reappears if the criterion is unchecked below);
+          // the whole block collapses when every suggestion has been added
+          <div className="sf-collapse" data-collapsed={allSuggestionsAdded} aria-hidden={allSuggestionsAdded} inert={allSuggestionsAdded}>
+            <div className="sf-collapse-inner">
+              <div className="mb-s4">
+                <p className="label mb-s2">Sugestie AI na podstawie zadań z OSP — wybór należy do Ciebie</p>
+                {suggestions.length === 0 && <p className="hint">Model nie zaproponował kryteriów dodatkowych.</p>}
+                {suggestions.map((s) => {
+                  const added = additional.includes(s.code);
+                  return (
+                    <div key={s.code} className="sf-collapse" data-collapsed={added} aria-hidden={added} inert={added}>
+                      <div className="sf-collapse-inner">
+                        <div className="pb-s2">
+                          <div className="flex items-start justify-between gap-s3 rounded-lg border border-line p-s3">
+                            <div>
+                              <p className="font-semibold">{s.name}</p>
+                              <p className="hint">{s.reason}</p>
+                            </div>
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              disabled={readOnly || added || additional.length >= MAX_ADDITIONAL_CRITERIA}
+                              onClick={() => toggleAdditional(s.code, true)}
+                            >
+                              Dodaj
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            ))}
+            </div>
           </div>
         )}
 

@@ -67,6 +67,19 @@ describe('Assessment step — human in the loop', () => {
     expect(latest.criteriaAssessments[0].indicatorAssessments.filter((i) => i.selected)).toHaveLength(1);
     expect((boxes[2] as HTMLButtonElement).disabled).toBe(true);
   });
+
+  it('„Brak podstaw do oceny” is a real option of the group: checked by default, unchecked by a behaviour, re-checkable', async () => {
+    render(<Harness />);
+    const g = screen.getAllByRole('radiogroup', { name: /Zaobserwowane zachowanie/ })[0];
+    const none = within(g).getByRole('radio', { name: /Brak podstaw do oceny/ });
+    expect(none.getAttribute('aria-checked')).toBe('true');
+    await act(async () => fireEvent.click(within(g).getAllByRole('radio')[2]));
+    expect(none.getAttribute('aria-checked')).toBe('false');
+    expect(latest.criteriaAssessments[0].indicatorAssessments[0].level).toBe(5);
+    await act(async () => fireEvent.click(none));
+    expect(none.getAttribute('aria-checked')).toBe('true');
+    expect(latest.criteriaAssessments[0].indicatorAssessments[0].level).toBeNull();
+  });
 });
 
 describe('AI draft label', () => {

@@ -106,6 +106,50 @@
     font: 400 15px/1.4 var(--sf-font-body); color: var(--sf-text-primary);
     background: var(--sf-surface); border: 1px solid var(--sf-border-strong);
   }
+  .input[aria-invalid='true'] { border-bottom-color: var(--sf-error); }
+  .input[data-warning='true'] { border-bottom-color: var(--sf-warning); }
+
+  /* Validation popup attached to a field — quiet: small text, faint tint, a coloured dot; arrow points at the input */
+  .field-popup { --tone: var(--sf-text-secondary); position: relative; display: flex; gap: 8px; width: fit-content; max-width: 100%;
+    margin-top: 8px; padding: 6px 10px; border-radius: var(--sf-radius); font-size: 13px; line-height: 1.45;
+    color: var(--sf-text-secondary); background: color-mix(in srgb, var(--tone) 6%, var(--sf-surface));
+    border: 1px solid color-mix(in srgb, var(--tone) 28%, var(--sf-border)); animation: sf-pop var(--sf-duration) var(--sf-ease); }
+  .field-popup::before { content: ''; position: absolute; top: -5px; left: 18px; width: 8px; height: 8px;
+    background: inherit; border: inherit; border-right: 0; border-bottom: 0; transform: rotate(45deg); }
+  .field-popup::after { content: ''; flex: none; width: 6px; height: 6px; margin-top: 7px; border-radius: 9999px; background: var(--tone); order: -1; }
+  .field-popup-error { --tone: var(--sf-error); }
+  .field-popup-warning { --tone: var(--sf-warning); }
+
+  /* Date field: text input + calendar toggle, and our own month picker */
+  .date-field { position: relative; }
+  .date-field-input { padding-right: 40px; }
+  .date-field-toggle { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); display: grid; place-items: center;
+    width: 30px; height: 30px; border-radius: var(--sf-radius-sm); color: var(--sf-text-secondary); cursor: pointer;
+    transition: background var(--sf-duration) var(--sf-ease), color var(--sf-duration) var(--sf-ease); }
+  .date-field-toggle:hover:not(:disabled) { color: var(--sf-text-primary); background: color-mix(in srgb, var(--sf-text-primary) 8%, transparent); }
+  .date-field-toggle:disabled { cursor: not-allowed; opacity: var(--sf-disabled-opacity); }
+
+  .datepicker { position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; width: 296px; padding: 12px;
+    background: var(--sf-surface); color: var(--sf-text-primary); border: 1px solid var(--sf-border); border-radius: var(--sf-radius-lg);
+    box-shadow: var(--sf-shadow-lg); animation: sf-pop var(--sf-duration) var(--sf-ease); }
+  .datepicker-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .datepicker-title { font-weight: 600; font-size: 15px; text-transform: capitalize; }
+  .datepicker-nav { width: 32px; height: 32px; border-radius: var(--sf-radius-sm); font-size: 20px; line-height: 1; cursor: pointer;
+    transition: background var(--sf-duration) var(--sf-ease); }
+  .datepicker-nav:hover:not(:disabled) { background: color-mix(in srgb, var(--sf-text-primary) 8%, transparent); }
+  .datepicker-nav:disabled { opacity: 0.3; cursor: not-allowed; }
+  .datepicker-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  .datepicker-wd { text-align: center; font-size: 12px; color: var(--sf-text-secondary); padding: 4px 0; }
+  .datepicker-day { width: 100%; aspect-ratio: 1; border-radius: var(--sf-radius-sm); font: 400 14px/1 var(--sf-font-body); cursor: pointer;
+    transition: background var(--sf-duration) var(--sf-ease); }
+  .datepicker-day:hover:not([aria-disabled='true']) { background: color-mix(in srgb, var(--sf-text-primary) 8%, transparent); }
+  .datepicker-day[data-today='true'] { box-shadow: inset 0 0 0 1px var(--sf-border-strong); }
+  .datepicker-day[data-selected='true'] { background: var(--sf-primary); color: var(--sf-on-primary); font-weight: 600; }
+  /* unavailable days: clearly greyed and not clickable */
+  .datepicker-day[aria-disabled='true'] { color: var(--sf-text-secondary); opacity: 0.35; cursor: not-allowed; text-decoration: line-through; }
+  .datepicker-note { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--sf-border); font-size: 12px; line-height: 1.45; color: var(--sf-text-secondary); }
+  .datepicker-foot { display: flex; justify-content: space-between; margin-top: 10px; }
+
   .label { display: block; font: 600 14px/1.4 var(--sf-font-body); margin-bottom: 6px; }
   .hint { font-size: 14px; line-height: 1.5; color: var(--sf-text-secondary); }
   .mono { font-family: var(--sf-font-mono); }
@@ -134,6 +178,14 @@
     background: var(--sf-surface); border: 1px solid var(--sf-border-strong); color: var(--sf-text-primary); font: 400 14px/1.5 var(--sf-font-body); }
   .radio-card[data-state='checked'] { box-shadow: inset 0 0 0 3px var(--sf-text-primary); border-color: var(--sf-text-primary); }
   .radio-card:disabled { opacity: var(--sf-disabled-opacity); cursor: not-allowed; }
+  .radio-card { transition: box-shadow var(--sf-duration) var(--sf-ease), border-color var(--sf-duration) var(--sf-ease), background var(--sf-duration) var(--sf-ease); }
+  /* „Brak podstaw do oceny”: dashed while not chosen (an absence, not a behaviour); chosen = same thick frame as a behaviour + ✓ */
+  .radio-card-none { background: transparent; border-style: dashed; }
+  .radio-card-none[data-state='checked'] { border-style: solid; background: color-mix(in srgb, var(--sf-text-primary) 6%, var(--sf-surface)); }
+  .radio-card-mark { flex: none; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 9999px;
+    border: 1.5px solid var(--sf-border-strong); transition: background var(--sf-duration) var(--sf-ease), border-color var(--sf-duration) var(--sf-ease); }
+  .radio-card[data-state='checked'] .radio-card-mark { background: var(--sf-primary); border-color: var(--sf-primary); }
+  .radio-card[data-state='checked'] .radio-card-mark::after { content: '✓'; color: var(--sf-on-primary); font-size: 12px; font-weight: 700; line-height: 1; }
   .score-pill { min-width: 46px; padding: 8px 12px; border-radius: var(--sf-radio-radius); border: 1px solid var(--sf-border-strong);
     background: var(--sf-surface); font: 600 15px/1 var(--sf-font-mono); color: var(--sf-text-primary); cursor: pointer; }
   .score-pill[data-state='checked'] { background: var(--sf-primary); color: var(--sf-on-primary); border-color: var(--sf-primary); }
@@ -147,12 +199,23 @@
   .tooltip { background: var(--sf-text-primary); color: var(--sf-background); border-radius: var(--sf-tooltip-radius); padding: var(--sf-tooltip-padding);
     font: 500 12px/1.4 var(--sf-font-body); box-shadow: var(--sf-shadow-md); max-width: 320px; animation: sf-fade var(--sf-duration) var(--sf-ease); }
 
+  /* Smooth collapse (height → 0 + fade, ease-out). Content stays in the DOM, so it can expand back. */
+  .sf-collapse { display: grid; grid-template-rows: 1fr; opacity: 1;
+    transition: grid-template-rows calc(var(--sf-duration) * 1.5) var(--sf-ease), opacity var(--sf-duration) var(--sf-ease); }
+  .sf-collapse[data-collapsed='true'] { grid-template-rows: 0fr; opacity: 0; }
+  .sf-collapse-inner { min-height: 0; overflow: hidden; }
+
   .h-dense { font-family: var(--sf-font-heading); font-weight: 400; font-size: var(--sf-h2-size); line-height: var(--sf-h2-lh); letter-spacing: var(--sf-h2-ls); }
 }
 
 @keyframes sf-fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes sf-slide-left { from { opacity: 0; transform: translateX(var(--sf-reveal-distance)); } to { opacity: 1; transform: none; } }
+@keyframes sf-pop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 @keyframes sf-zoom { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .sf-collapse { transition: none; }
+}
 
 html, body, #root { min-height: 100%; }
 body { min-width: 1200px; }

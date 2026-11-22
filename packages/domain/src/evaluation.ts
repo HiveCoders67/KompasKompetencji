@@ -1,4 +1,5 @@
 import { COMPETENCY_BY_CODE } from './competencies';
+import { formatPL, today } from './dates';
 import { objectionDeadline, firstEvaluationDeadlines, periodicDeadlines, afterNegativeDeadlines } from './deadlines';
 import { MANDATORY_CRITERIA, isScoreAllowed, validateAdditionalCriteria } from './forms';
 import { resolveForm } from './osp';
@@ -214,9 +215,72 @@ export function autoStatus(ev: Evaluation): Evaluation {
 export interface Issue {
   step: StepId;
   message: string;
+  /** 'warning' = shown but does not block the step (e.g. a late initial talk, which cannot be undone). Default: blocking. */
+  severity?: 'warning';
+  /** Form field the issue belongs to — the UI shows it next to that field. */
+  field?: DeadlineField;
+  /** The value has not been entered yet (UI may wait until the field is touched or the step is submitted). */
+  missing?: boolean;
 }
 
-export function initialTalkIssues(ev: Evaluation, employee: Employee): Issue[] {
+/** Date fields of the initial-talk step (path A); a range counts as one field. */
+export type DeadlineField = 'initialTalkDate' | 'reportDue' | 'evaluationWindow';
+
+export const isBlocking = (i: Issue): boolean => i.severity !== 'warning';
+export const blockingIssues = (issues: Issue[]): Issue[] => issues.filter(isBlocking);
+
+/**
+ * Consistency of the path A dates set at the initial talk (§ 3–§ 4 rozp. 2015, art. 38 ust. 1 ustawy).
+ * Legal bounds come from the hire date; a contract extension under art. 35 ust. 4 is not modelled in the prototype.
+ * Only checks fields that are filled in — missing values are reported by `initialTalkIssues`.
+ */
+export function firstDeadlineIssues(ev: Evaluation, employee: Employee, onDate: DateOnly): Issue[] {
+  if (ev.type !== 'FIRST_EVALUATION') return [];
+  const issues: Issue[] = [];
+  const err = (field: DeadlineField, message: string) => issues.push({ step: 'start', field, message });
+  const legal = firstEvaluationDeadlines(employee.hireDate);
+  const { initialTalkDate: talk, reportDueFrom: rFrom, reportDueTo: rTo, evaluationWindowFrom: wFrom, evaluationWindowTo: wTo } = ev.deadlines;
+
+  if (talk) {
+    if (talk < employee.hireDate) err('initialTalkDate', `Data rozmowy wstępnej (${formatPL(talk)}) jest wcześniejsza niż nawiązanie stosunku pracy (${formatPL(employee.hireDate)}).`);
+    if (talk > onDate) err('initialTalkDate', `Data rozmowy wstępnej (${formatPL(talk)}) jest w przyszłości — rozmowę potwierdza się po jej przeprowadzeniu.`);
+    else if (talk > legal.initialTalkDue && talk >= employee.hireDate) {
+      issues.push({
+        step: 'start',
+        field: 'initialTalkDate',
+        severity: 'warning',
+        message: `Rozmowa wstępna odbyła się po terminie 21 dni (termin: ${formatPL(legal.initialTalkDue)}, § 3 rozp. z 2015 r.). Udokumentuj ją mimo to.`,
+      });
+    }
+  }
+
+  if (rFrom && rTo) {
+    if (rFrom > rTo) err('reportDue', 'Termin złożenia sprawozdania: data początkowa jest późniejsza niż końcowa.');
+    if (rFrom < legal.reportDueFrom) {
+      err('reportDue', `Termin złożenia sprawozdania musi przypadać po upływie 8 miesięcy od nawiązania stosunku pracy — najwcześniej ${formatPL(legal.reportDueFrom)} (§ 4 ust. 1 rozp. z 2015 r.).`);
+    }
+    if (rTo > legal.evaluationWindowTo) {
+      err('reportDue', `Termin złożenia sprawozdania musi pozwolić na dokonanie oceny najpóźniej miesiąc przed końcem umowy — sprawozdanie najpóźniej ${formatPL(legal.evaluationWindowTo)} (§ 4 ust. 1 rozp. z 2015 r., art. 38 ust. 1 ustawy).`);
+    }
+    if (talk && rFrom < talk) err('reportDue', 'Termin złożenia sprawozdania wypada przed rozmową wstępną — wyznacza się go podczas tej rozmowy (§ 3 pkt 4 rozp. z 2015 r.).');
+  }
+
+  if (wFrom && wTo) {
+    if (wFrom > wTo) err('evaluationWindow', 'Okres dokonania pierwszej oceny: data początkowa jest późniejsza niż końcowa.');
+    if (wFrom < legal.evaluationWindowFrom) {
+      err('evaluationWindow', `Pierwszej oceny można dokonać najwcześniej po upływie 8 miesięcy od nawiązania stosunku pracy — od ${formatPL(legal.evaluationWindowFrom)} (art. 38 ust. 1 ustawy).`);
+    }
+    if (wTo > legal.evaluationWindowTo) {
+      err('evaluationWindow', `Pierwszej oceny trzeba dokonać najpóźniej miesiąc przed końcem umowy — do ${formatPL(legal.evaluationWindowTo)} (art. 38 ust. 1 ustawy).`);
+    }
+    if (talk && wFrom < talk) err('evaluationWindow', 'Okres dokonania pierwszej oceny zaczyna się przed rozmową wstępną.');
+  }
+
+  if (rTo && wTo && rTo > wTo) err('reportDue', 'Termin złożenia sprawozdania kończy się po okresie dokonania oceny — ocena następuje po sprawozdaniu (§ 8 ust. 1 rozp. z 2015 r.).');
+  return issues;
+}
+
+export function initialTalkIssues(ev: Evaluation, employee: Employee, onDate: DateOnly = today()): Issue[] {
   const issues: Issue[] = [];
   if (ev.type === 'PERIODIC_EVALUATION') {
     if (resolveForm(employee.osp) === null) {
@@ -225,14 +289,20 @@ export function initialTalkIssues(ev: Evaluation, employee: Employee): Issue[] {
     const additional = ev.criteriaAssessments.filter((c) => !c.isMandatory).map((c) => c.competencyId);
     for (const m of validateAdditionalCriteria(ev.formType, additional)) issues.push({ step: 'osp', message: m });
   } else {
-    if (!ev.deadlines.reportDueFrom || !ev.deadlines.reportDueTo) issues.push({ step: 'start', message: 'Wyznacz termin na złożenie sprawozdania.' });
+    if (!ev.deadlines.reportDueFrom || !ev.deadlines.reportDueTo) issues.push({ step: 'start', field: 'reportDue', missing: true, message: 'Wyznacz termin na złożenie sprawozdania.' });
     if (!ev.deadlines.evaluationWindowFrom || !ev.deadlines.evaluationWindowTo) {
-      issues.push({ step: 'start', message: 'Wyznacz okres, w którym powinna zostać dokonana pierwsza ocena.' });
+      issues.push({ step: 'start', field: 'evaluationWindow', missing: true, message: 'Wyznacz okres, w którym powinna zostać dokonana pierwsza ocena.' });
     }
   }
   if (!ev.deadlines.initialTalkDate) {
-    issues.push({ step: 'start', message: ev.type === 'FIRST_EVALUATION' ? 'Podaj datę rozmowy wstępnej.' : 'Podaj datę rozmowy rozpoczynającej.' });
+    issues.push({
+      step: 'start',
+      field: 'initialTalkDate',
+      missing: true,
+      message: ev.type === 'FIRST_EVALUATION' ? 'Podaj datę rozmowy wstępnej.' : 'Podaj datę rozmowy rozpoczynającej.',
+    });
   }
+  issues.push(...firstDeadlineIssues(ev, employee, onDate));
   return issues;
 }
 
@@ -250,8 +320,8 @@ export function assessmentIssues(ev: Evaluation): Issue[] {
 }
 
 /** Full validation before `completeEvaluation` (shared by UI and the Cloud Function). */
-export function completionIssues(ev: Evaluation, employee: Employee): Issue[] {
-  const issues = [...initialTalkIssues(ev, employee), ...assessmentIssues(ev)];
+export function completionIssues(ev: Evaluation, employee: Employee, onDate: DateOnly = today()): Issue[] {
+  const issues = [...initialTalkIssues(ev, employee, onDate), ...assessmentIssues(ev)];
   if (!ev.deadlines.finalTalkDate) issues.push({ step: 'final', message: 'Podaj datę rozmowy oceniającej.' });
   if (ev.type === 'FIRST_EVALUATION') {
     const r = ev.firstEvalRequirements;
@@ -306,7 +376,7 @@ const round2 = (x: number) => Math.round((x + Number.EPSILON) * 100) / 100;
 export function completeEvaluation(ev: Evaluation, employee: Employee, onDate: DateOnly, now: Instant): Evaluation {
   if (isLocked(ev)) throw new Error('Ocena została już zatwierdzona.');
   const fresh = recalc(ev);
-  const issues = completionIssues(fresh, employee);
+  const issues = blockingIssues(completionIssues(fresh, employee, onDate));
   if (issues.length) throw new Error(issues.map((i) => i.message).join(' '));
   const result = previewResult(fresh)!;
   return {
