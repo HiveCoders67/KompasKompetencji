@@ -16,8 +16,13 @@ export const EXAMPLE_QUESTIONS = [
   'Ile dni ma pracownik na złożenie sprzeciwu od oceny okresowej i do kogo?',
 ];
 
+/** The user's own message — the same bubble in both assistants. */
+function UserBubble({ children }: { children: string }) {
+  return <div className="ml-10 whitespace-pre-wrap rounded-lg bg-[color-mix(in_srgb,var(--sf-text-primary)_6%,transparent)] p-s3 text-sm">{children}</div>;
+}
+
 export function MessageView({ m }: { m: AiMessage }) {
-  if (m.role === 'user') return <div className="ml-10 rounded-lg bg-[color-mix(in_srgb,var(--sf-text-primary)_6%,transparent)] p-s3 text-sm">{m.content}</div>;
+  if (m.role === 'user') return <UserBubble>{m.content}</UserBubble>;
   return (
     <div className={`rounded-lg border p-s3 text-sm ${m.refused ? 'border-warning' : 'border-line'}`}>
       {m.refused && <p className="mb-1 text-xs font-semibold text-warning">Brak informacji w bazie wiedzy</p>}
@@ -122,21 +127,41 @@ const TASKS: { task: InterviewTask; label: string; insert?: 'justification' | 'd
   { task: 'DIFFICULT_TALK', label: 'Jak przeprowadzić trudną rozmowę' },
 ];
 
+/** Conversation entry: the user's request (typed question or the chosen task) or the assistant's answer. */
+type InterviewItem = { kind: 'user'; id: string; text: string } | { kind: 'answer'; task: InterviewTask; message: AiMessage; inserted?: boolean };
+
 function InterviewChat({ ev, step, update, readOnly }: { ev: Evaluation; step: StepId; update: (fn: (e: Evaluation) => Evaluation) => void; readOnly: boolean }) {
-  const [items, setItems] = useState<{ task: InterviewTask; message: AiMessage; inserted?: boolean }[]>([]);
+  const [items, setItems] = useState<InterviewItem[]>([]);
   const [sessionId, setSessionId] = useState<string | undefined>();
   const [busy, setBusy] = useState<InterviewTask | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState('');
+  // ready-made prompts („podpowiedzi”) take a lot of the narrow panel — they fold away once the user types their own question
+  const [tasksOpen, setTasksOpen] = useState(true);
+  const end = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    end.current?.scrollIntoView({ block: 'nearest' });
+  }, [items.length, busy]);
 
   const run = async (task: InterviewTask, message?: string) => {
+    if (busy) return;
+    // the request is shown at once — a typed question as written, a task button by its label
+    const local: InterviewItem = { kind: 'user', id: `u${Date.now()}`, text: message ?? TASKS.find((t) => t.task === task)?.label ?? task };
+    setItems((x) => [...x, local]);
     setBusy(task);
     setError(null);
+    if (message) {
+      setQ('');
+      setTasksOpen(false);
+    }
     try {
       const r = await askInterviewFn({ task, evaluationId: ev.id, message, step, sessionId });
       setSessionId(r.sessionId);
-      setItems((x) => [...x, { task, message: r.message }]);
+      setItems((x) => [...x, { kind: 'answer', task, message: r.message }]);
     } catch (e) {
+      // nothing was stored — drop the request and give a typed question back for a retry (as in the formal assistant)
+      setItems((x) => x.filter((it) => it !== local));
+      if (message) setQ(message);
       setError(callableError(e));
     } finally {
       setBusy(null);
@@ -144,23 +169,43 @@ function InterviewChat({ ev, step, update, readOnly }: { ev: Evaluation; step: S
   };
 
   const insert = (idx: number, field: 'justification' | 'developmentPlan') => {
-    const text = items[idx].message.content;
-    update((e) => ({ ...e, texts: { ...e.texts, [field]: text, [`${field}AiDraft`]: true } }));
-    setItems((x) => x.map((it, i) => (i === idx ? { ...it, inserted: true } : it)));
+    const it = items[idx];
+    if (it.kind !== 'answer') return;
+    update((e) => ({ ...e, texts: { ...e.texts, [field]: it.message.content, [`${field}AiDraft`]: true } }));
+    setItems((x) => x.map((y, i) => (i === idx && y.kind === 'answer' ? { ...y, inserted: true } : y)));
   };
 
   return (
     <div className="flex h-full flex-col gap-s3">
       <p className="hint text-xs">Asystent pracuje na OSP, wybranych wskaźnikach i Twoich notatkach. Nie wystawia ocen — tylko pomaga przygotować rozmowę i teksty.</p>
-      <div className="flex flex-wrap gap-2">
-        {TASKS.map((t) => (
-          <button key={t.task} className="btn btn-secondary btn-sm" disabled={!!busy} onClick={() => run(t.task)}>
-            {busy === t.task ? 'Generowanie…' : t.label}
-          </button>
-        ))}
+      <div>
+        <button
+          type="button"
+          className="show-more btn btn-ghost btn-sm !px-2"
+          aria-expanded={tasksOpen}
+          aria-controls="interview-tasks"
+          onClick={() => setTasksOpen((o) => !o)}
+        >
+          {tasksOpen ? 'Ukryj podpowiedzi' : `Pokaż podpowiedzi (${TASKS.length})`}
+          <svg className="show-more-chevron" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M3.5 6L8 10.5 12.5 6" />
+          </svg>
+        </button>
+        <div id="interview-tasks" className="sf-collapse" data-collapsed={!tasksOpen} aria-hidden={!tasksOpen} inert={!tasksOpen}>
+          <div className="sf-collapse-inner">
+            <div className="flex flex-wrap gap-2 pt-s2">
+              {TASKS.map((t) => (
+                <button key={t.task} className="btn btn-secondary btn-sm" disabled={!!busy} onClick={() => run(t.task)}>
+                  {busy === t.task ? 'Generowanie…' : t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
       <div className="flex min-h-0 flex-1 flex-col gap-s3 overflow-y-auto">
         {items.map((it, i) => {
+          if (it.kind === 'user') return <UserBubble key={it.id}>{it.text}</UserBubble>;
           const def = TASKS.find((t) => t.task === it.task);
           return (
             <div key={it.message.id} className="rounded-lg border border-line p-s3 text-sm">
@@ -177,14 +222,19 @@ function InterviewChat({ ev, step, update, readOnly }: { ev: Evaluation; step: S
             </div>
           );
         })}
+        {busy && (
+          <p className="hint text-sm" role="status">
+            Przygotowuję odpowiedź…
+          </p>
+        )}
         {error && <Alert tone="error">{error}</Alert>}
+        <div ref={end} />
       </div>
       <form
         className="flex gap-2"
         onSubmit={(e) => {
           e.preventDefault();
           if (q.trim()) run('CHAT', q.trim());
-          setQ('');
         }}
       >
         <label htmlFor="interview-q" className="sr-only">
