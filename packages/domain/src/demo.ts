@@ -87,7 +87,7 @@ export const DEMO_USERS: AppUser[] = [
 
 /** Jury entry buttons on the login screen (docs/01 § 9). */
 export const JURY_ENTRY: { label: string; uid: string; description: string }[] = [
-  { label: 'Wejdź jako przełożony', uid: 'sup_dc', description: 'Marta Zielińska — ocena okresowa (Arkusz C) i pierwsza ocena' },
+  { label: 'Wejdź jako przełożony', uid: 'sup_dc', description: 'Marta Zielińska — ocena okresowa (Arkusz C), pierwsza ocena i nowy pracownik bez oceny' },
   { label: 'Wejdź jako kierujący komórką', uid: 'head_dc', description: 'Paweł Kamiński — zatwierdzanie pierwszej oceny' },
   { label: 'Wejdź jako HR', uid: 'hr_admin', description: 'Joanna Dąbrowska — terminy i przypomnienia, bez treści ocen' },
 ];
@@ -163,6 +163,20 @@ export const DEMO_EMPLOYEES: Employee[] = [
     departmentHeadId: 'head_dsi',
     absences: [],
     osp: osp('osp-dsi-wwi-5-radca.docx'),
+    lastPeriodicEvaluation: null,
+  }),
+  // Path A — new hire with no evaluation yet: the jury starts one from „Pracownicy bez oceny w toku”
+  emp({
+    id: 'emp_pawlak',
+    firstName: 'Karolina',
+    lastName: 'Pawlak',
+    employmentType: 'CIVIL_SERVICE_EMPLOYEE',
+    contractType: 'DEFINITE_12M',
+    hireDate: '2026-11-16',
+    supervisorId: 'sup_dc',
+    departmentHeadId: 'head_dc',
+    absences: [],
+    osp: osp('osp-dc-wzksoic-6-starszy-specjalista.docx'),
     lastPeriodicEvaluation: null,
   }),
 ];
