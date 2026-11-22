@@ -24,8 +24,6 @@ Bez instalacji i bez zakładania konta — działa w przeglądarce na komputerze
 3. Przy pierwszym wejściu na każde konto krótki **samouczek** pokazuje najważniejsze miejsca (można go pominąć i uruchomić ponownie przyciskiem „Samouczek” w menu).
 4. **„Przywróć dane demo”** na ekranie logowania przywraca scenariusz do stanu początkowego.
 
-![Ścieżki oceny](docs/assets/sciezki-oceny.png)
-
 **Przykładowe pytania do asystenta formalnego:** „Pracownik ma średnią 5,8 z oceny okresowej, ale dostał 1 punkt za komunikację. Czy ocena jest pozytywna?” · „Ile dni ma pracownik na złożenie sprzeciwu od oceny okresowej i do kogo?” · „W jakim terminie przełożony przeprowadza rozmowę wstępną z nowym pracownikiem?”
 
 ## Uruchomienie lokalne (opcjonalnie)
