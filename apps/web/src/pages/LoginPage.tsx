@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { DEMO_PASSWORD, DEMO_USERS, JURY_ENTRY } from '@kompas/domain';
 import { isCredentialError, useSession } from '../app/session';
+import { ThemeSwitch } from '../components/ThemeSwitch';
 import { Alert, Field, Modal } from '../components/ui';
 import { callableError, resetDemoFn } from '../data/repo';
 import { usingEmulator } from '../firebase';
@@ -71,7 +72,8 @@ export function LoginPage() {
   const shownError = error ?? sessionError;
 
   return (
-    <main className="mx-auto grid min-h-screen max-w-[1040px] grid-cols-[1.1fr_1fr] items-center gap-s7 px-[32px] py-s7">
+    <main className="relative mx-auto grid min-h-screen max-w-[1040px] grid-cols-[1.1fr_1fr] items-center gap-s7 px-[32px] py-s7">
+      <ThemeSwitch className="absolute right-[32px] top-s5" />
       <section>
         <p className="badge badge-outline mb-s4">HackNation 2026 · Ministerstwo Cyfryzacji</p>
         <h1>Kompas Kompetencji</h1>

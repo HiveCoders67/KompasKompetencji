@@ -194,6 +194,11 @@
   .switch-thumb { display: block; width: 16px; height: 16px; border-radius: 2px; background: var(--sf-background);
     transform: translateX(3px); transition: transform var(--sf-duration) var(--sf-ease); }
   .switch-thumb[data-state='checked'] { transform: translateX(21px); }
+  .switch:focus-visible { outline: 3px solid var(--sf-primary); outline-offset: 2px; }
+  /* Icon-only theme toggle: square ghost button, secondary icon colour until hovered */
+  .theme-toggle { width: 36px; height: 36px; padding: 0; flex: none; color: var(--sf-text-secondary); }
+  .theme-toggle:hover { color: var(--sf-text-primary); }
+  .theme-toggle:focus-visible { outline: 3px solid var(--sf-primary); outline-offset: 2px; }
   .modal { background: var(--sf-surface); color: var(--sf-text-primary); border: 1px solid var(--sf-border); border-radius: var(--sf-modal-radius);
     padding: var(--sf-modal-padding); box-shadow: var(--sf-shadow-sm); animation: sf-zoom var(--sf-duration) var(--sf-ease); }
   .tooltip { background: var(--sf-text-primary); color: var(--sf-background); border-radius: var(--sf-tooltip-radius); padding: var(--sf-tooltip-padding);
@@ -256,7 +261,7 @@
 @media (prefers-reduced-motion: reduce) {
   .sf-collapse, .disclosure-trigger, .disclosure-chevron, .step-tab, .brand-link { transition: none; }
   .save-dot.saving { animation: none; }
-  .auto-height { transition: none; }
+  .auto-height, .switch-thumb { transition: none; }
   .login-panel { animation: none; }
 }
 

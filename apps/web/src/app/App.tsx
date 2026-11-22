@@ -13,11 +13,10 @@ import { LoginPage } from '../pages/LoginPage';
 import { RemindersPage } from '../pages/RemindersPage';
 import { SupervisorDashboard } from '../pages/SupervisorDashboard';
 import { homePath, SessionProvider, useSession } from './session';
-import { useTheme } from './theme';
+import { ThemeSwitch } from '../components/ThemeSwitch';
 
 function Sidebar() {
   const { user, has, signOut } = useSession();
-  const { theme, toggle } = useTheme();
   const [reminders, setReminders] = useState<Reminder[]>([]);
   useEffect(() => (user && has('SUPERVISOR') ? watchMyReminders(user, setReminders) : undefined), [user?.uid]); // eslint-disable-line react-hooks/exhaustive-deps
   const unread = reminders.filter((r) => r.status === 'SENT').length;
@@ -51,13 +50,13 @@ function Sidebar() {
         {!has('HR_ADMIN') && item('/asystent', 'Asystent formalny')}
       </nav>
       <div className="mt-auto flex flex-col gap-s3 border-t border-line px-2 pt-s4">
-        <div>
-          <p className="text-sm font-semibold">{user.displayName}</p>
-          <p className="hint text-xs">{user.roles.map((r) => ROLE_LABELS[r]).join(' · ')}</p>
+        <div className="flex items-center justify-between gap-s2">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold">{user.displayName}</p>
+            <p className="hint text-xs">{user.roles.map((r) => ROLE_LABELS[r]).join(' · ')}</p>
+          </div>
+          <ThemeSwitch />
         </div>
-        <button className="btn btn-secondary btn-sm" onClick={toggle} aria-label={`Przełącz na motyw ${theme === 'dark' ? 'jasny' : 'ciemny'}`}>
-          Motyw: {theme === 'dark' ? 'ciemny' : 'jasny'}
-        </button>
         <button className="btn btn-ghost btn-sm" onClick={() => signOut()}>
           Wyloguj
         </button>
