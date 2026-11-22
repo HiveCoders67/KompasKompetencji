@@ -63,8 +63,24 @@
   .card {
     background: var(--sf-surface); color: var(--sf-text-primary);
     border: 1px solid var(--sf-border); border-radius: var(--sf-card-radius); padding: var(--sf-card-padding);
-    animation: sf-fade var(--sf-duration) var(--sf-ease);
   }
+  /* section reveal on scroll (app/reveal.ts): fades and zooms in when it enters the viewport, out when it leaves */
+  main [data-reveal] { transition: opacity var(--sf-duration-enter) var(--sf-ease-enter) var(--sf-reveal-delay, 0ms),
+    transform var(--sf-duration-enter) var(--sf-ease-enter) var(--sf-reveal-delay, 0ms); }
+  /* a revealed element with its own hover transition keeps both */
+  main .stat-tile[data-reveal] { transition: opacity var(--sf-duration-enter) var(--sf-ease-enter) var(--sf-reveal-delay, 0ms),
+    transform var(--sf-duration-enter) var(--sf-ease-enter) var(--sf-reveal-delay, 0ms),
+    border-color var(--sf-duration) var(--sf-ease), background var(--sf-duration) var(--sf-ease); }
+  [data-reveal='hidden'] { opacity: 0; transform: translateY(var(--sf-reveal-distance)) scale(0.985); }
+  [data-reveal='hidden'][data-reveal-from='top'] { transform: translateY(calc(var(--sf-reveal-distance) * -1)) scale(0.985); }
+  /* during the onboarding tour sections are simply there — the spotlight measures them at their final place */
+  html[data-tour-active] main [data-reveal] { opacity: 1 !important; transform: none !important; transition: none !important; }
+  /* the evaluation form has no entrance motion at all: no page fade, no section reveal, alerts and tables just appear */
+  .page-enter:has([data-no-reveal]) { animation: none; }
+  [data-no-reveal] [data-reveal] { opacity: 1 !important; transform: none !important; transition: none !important; }
+  [data-no-reveal] .alert, [data-no-reveal] .table { animation: none; }
+  /* page transition: the routed content fades in */
+  .page-enter { animation: sf-fade var(--sf-duration-page) var(--sf-ease) both; }
 
   .badge {
     display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
@@ -181,6 +197,8 @@
   .radio-card { display: block; width: 100%; text-align: left; cursor: pointer; padding: 12px 14px; border-radius: var(--sf-radio-radius);
     background: var(--sf-surface); border: 1px solid var(--sf-border-strong); color: var(--sf-text-primary); font: 400 14px/1.5 var(--sf-font-body); }
   .radio-card[data-state='checked'] { box-shadow: inset 0 0 0 3px var(--sf-text-primary); border-color: var(--sf-text-primary); }
+  /* behaviour description card: level heading pinned to the top, so the headings of a row line up */
+  .behavior-card { display: flex; flex-direction: column; justify-content: flex-start; align-items: stretch; }
   .radio-card:disabled { opacity: var(--sf-disabled-opacity); cursor: not-allowed; }
   .radio-card { transition: box-shadow var(--sf-duration) var(--sf-ease), border-color var(--sf-duration) var(--sf-ease), background var(--sf-duration) var(--sf-ease); }
   /* „Brak podstaw do oceny”: dashed while not chosen (an absence, not a behaviour); chosen = same thick frame as a behaviour + ✓ */
@@ -191,7 +209,7 @@
   .radio-card[data-state='checked'] .radio-card-mark { background: var(--sf-primary); border-color: var(--sf-primary); }
   .radio-card[data-state='checked'] .radio-card-mark::after { content: '✓'; color: var(--sf-on-primary); font-size: 12px; font-weight: 700; line-height: 1; }
   .score-pill { min-width: 46px; padding: 8px 12px; border-radius: var(--sf-radio-radius); border: 1px solid var(--sf-border-strong);
-    background: var(--sf-surface); font: 600 15px/1 var(--sf-font-mono); color: var(--sf-text-primary); cursor: pointer; }
+    background: var(--sf-surface); font: 600 15px/1 var(--sf-font-body); font-variant-numeric: tabular-nums; color: var(--sf-text-primary); cursor: pointer; }
   .score-pill[data-state='checked'] { background: var(--sf-primary); color: var(--sf-on-primary); border-color: var(--sf-primary); }
   .switch { width: 40px; height: 22px; border-radius: var(--sf-switch-radius); background: var(--sf-border-strong); position: relative; flex: none; }
   .switch[data-state='checked'] { background: var(--sf-primary); }
@@ -304,9 +322,9 @@
   .tour-backdrop[data-spot='true'] { background: transparent; }
   .tour-spotlight { position: fixed; border-radius: var(--sf-radius-lg); pointer-events: none;
     box-shadow: 0 0 0 2px var(--sf-accent), 0 0 0 9999px color-mix(in srgb, var(--sf-text-primary) 38%, transparent);
-    transition: top 280ms var(--sf-ease), left 280ms var(--sf-ease), width 280ms var(--sf-ease), height 280ms var(--sf-ease); }
+    transition: top 280ms var(--sf-ease), left 280ms var(--sf-ease), width 280ms var(--sf-ease), height 280ms var(--sf-ease), border-radius 280ms var(--sf-ease); }
   .tour-card { position: fixed; padding: var(--sf-space-4); background: var(--sf-surface); color: var(--sf-text-primary);
-    border: 1px solid var(--sf-border); border-top: 3px solid var(--sf-accent); border-radius: var(--sf-radius-lg); box-shadow: var(--sf-shadow-lg);
+    border: 1px solid var(--sf-border); border-top: 3px solid var(--sf-accent); border-radius: var(--sf-radius-lg); box-shadow: var(--sf-shadow-overlay);
     transition: top 280ms var(--sf-ease), left 280ms var(--sf-ease), opacity var(--sf-duration) var(--sf-ease); }
   .tour-card[data-ready='false'] { opacity: 0; }
   .tour-card:focus-visible { outline: 3px solid var(--sf-primary); outline-offset: 2px; }
@@ -338,6 +356,7 @@
   .save-dot.saving { animation: none; }
   .auto-height, .switch-thumb { transition: none; }
   .login-panel { animation: none; }
+  [data-reveal] { opacity: 1 !important; transform: none !important; transition: none !important; }
 }
 
 /* every enabled button shows the hand cursor (Tailwind's preflight resets it to the default arrow), incl. inline text buttons */

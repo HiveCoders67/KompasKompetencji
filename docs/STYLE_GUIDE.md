@@ -95,6 +95,7 @@ All fonts are available on Google Fonts.
   - sm: `0 1px 2px rgba(6, 6, 6, 0.013), 0 2px 6px rgba(6, 6, 6, 0.015)`
   - md: `0 2px 4px rgba(6, 6, 6, 0.010), 0 8px 24px rgba(6, 6, 6, 0.025)`
   - lg: `0 4px 8px rgba(6, 6, 6, 0.013), 0 24px 56px rgba(6, 6, 6, 0.040)`
+  - overlay: `0 2px 6px rgba(6, 6, 6, 0.08), 0 16px 40px rgba(6, 6, 6, 0.16)` — only for a card floating over a dimmed page (onboarding tour), where `lg` is invisible
 - **Spacing unit:** 10px. Scale: 5px, 10px, 14px, 19px, 29px, 38px, 58px
 - **Effects:** texture none, decoration none, glass blur 0px, surface opacity 100%, gradients off
 
@@ -202,15 +203,15 @@ Each component has a chosen variant and its own tokens (`--sf-<component>-*` in 
 
 ## 7. Motion
 
-- **Duration:** 220ms, easing `cubic-bezier(0.16, 1, 0.3, 1)` (ease-out)
-- **Section reveal on scroll:** fade, 8px travel, 40ms stagger between items, once
-- **Page transitions:** fade
+- **Duration:** micro-interactions (hover, toggles, collapses, tabs) 220ms, easing `cubic-bezier(0.16, 1, 0.3, 1)` (ease-out); sections entering and leaving the screen 520ms, easing `cubic-bezier(0.22, 1, 0.36, 1)` (soft ease-out, no overshoot)
+- **Section reveal on scroll:** fade + subtle zoom (scale 0.985), 12px travel, 50ms stagger between items, in and out in both scroll directions (cards and `data-reveal` elements in `<main>`)
+- **Page transitions:** fade, 320ms
 - **Smooth scroll:** yes · **Scroll progress bar:** no · **Parallax:** no
 - **Reduced motion:** respect `prefers-reduced-motion` and disable animations
 
 | Component | Enter | Micro-interaction |
 | --- | --- | --- |
-| Cards | fade | none |
+| Cards | fade + subtle zoom, in and out on scroll | none |
 | Dropdowns | fade-down | none |
 | Alerts | slide-left | none |
 | Modals | zoom | none |

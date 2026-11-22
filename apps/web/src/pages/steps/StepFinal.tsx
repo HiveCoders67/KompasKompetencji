@@ -125,8 +125,8 @@ export function StepFinal({ ev, employee, update, readOnly, next, goTo }: StepPr
             {ev.criteriaAssessments.map((c) => (
               <tr key={c.competencyId}>
                 <td>{COMPETENCY_BY_CODE[c.competencyId].name}</td>
-                <td className="mono">{c.suggestedScore ?? '—'}</td>
-                <td className="mono font-semibold">{c.finalScore ?? '—'}</td>
+                <td className="tabular-nums">{c.suggestedScore ?? '—'}</td>
+                <td className="font-semibold tabular-nums">{c.finalScore ?? '—'}</td>
               </tr>
             ))}
           </tbody>
@@ -140,7 +140,7 @@ export function StepFinal({ ev, employee, update, readOnly, next, goTo }: StepPr
             <div className="flex flex-wrap items-center gap-s5">
               <div>
                 <p className="hint">{isA ? 'Ocena łączna (średnia)' : 'Średnia arytmetyczna'}</p>
-                <p className="mono text-[26px]">{formatAverage(result.averageScore)}</p>
+                <p className="text-[26px] font-semibold tabular-nums">{formatAverage(result.averageScore)}</p>
               </div>
               {result.overallLevel && (
                 <div>

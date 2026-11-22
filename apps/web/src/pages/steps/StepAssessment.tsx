@@ -129,8 +129,12 @@ export function StepAssessment({ ev, update, readOnly, next, goTo }: StepProps) 
                                 aria-label={`Zaobserwowane zachowanie: ${ind.label}`}
                               >
                                 {behaviors.map((b) => (
-                                  <RadioGroup.Item key={b.level} value={String(b.level)} className="radio-card !p-s3 text-[13px]">
-                                    <span className="mono block text-xs font-semibold">
+                                  <RadioGroup.Item
+                                    key={b.level}
+                                    value={String(b.level)}
+                                    className="radio-card behavior-card !p-s3 text-[13px]"
+                                  >
+                                    <span className="block text-xs font-semibold tabular-nums">
                                       {b.level} · {SCORE_LABELS[b.level]}
                                     </span>
                                     <span className="mt-1 block">{b.description}</span>
@@ -291,7 +295,7 @@ function AssessmentProgress({ criteria, onJump }: { criteria: CriterionAssessmen
         <p className="min-w-0 truncate text-sm" aria-live="polite">
           {idx >= 0 ? (
             <>
-              <span className="hint mono">
+              <span className="hint tabular-nums">
                 Kryterium {idx + 1}/{total}
               </span>{' '}
               <strong>{COMPETENCY_BY_CODE[criteria[idx].competencyId].name}</strong>
@@ -301,8 +305,8 @@ function AssessmentProgress({ criteria, onJump }: { criteria: CriterionAssessmen
           )}
         </p>
         <p className="shrink-0 text-sm">
-          Ocenione kryteria: <strong className="mono">{scored}</strong>
-          <span className="hint mono"> / {total}</span>
+          Ocenione kryteria: <strong className="tabular-nums">{scored}</strong>
+          <span className="hint tabular-nums"> / {total}</span>
           {scored === total && <span className="ml-s2 font-semibold text-success">✓ gotowe</span>}
         </p>
       </div>
@@ -330,7 +334,7 @@ function AssessmentProgress({ criteria, onJump }: { criteria: CriterionAssessmen
                 onClick={() => onJump(c.competencyId)}
                 title={COMPETENCY_BY_CODE[c.competencyId].name}
               >
-                <span className="mono">{i + 1}.</span> {COMPETENCY_BY_CODE[c.competencyId].name}
+                <span className="tabular-nums">{i + 1}.</span> {COMPETENCY_BY_CODE[c.competencyId].name}
                 <span className="sr-only">{done ? ` — ocena ${c.finalScore} pkt` : ' — bez oceny'}</span>
                 {done && (
                   <span aria-hidden="true" className="ml-1">
@@ -353,7 +357,7 @@ function SuggestionText({ c, long }: { c: CriterionAssessment; long?: boolean })
   return (
     <span className="inline-flex items-center gap-2 text-sm">
       {long && <span className="badge badge-accent">Sugestia systemu na podstawie wskaźników</span>}
-      <span className="mono">
+      <span className="tabular-nums">
         Średnia wskaźników {formatAverage(c.suggestedMean)} → sugestia {c.suggestedScore} pkt
       </span>
     </span>

@@ -168,7 +168,7 @@ export function EvaluationPage() {
   };
 
   return (
-    <div className="pb-[88px]">
+    <div className="pb-[88px]" data-no-reveal>
       <header className="mb-s5 flex items-start justify-between gap-s4">
         <div>
           <Link to={back.to} onClick={leave} className="back-link mb-s2">

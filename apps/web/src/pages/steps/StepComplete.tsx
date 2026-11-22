@@ -128,7 +128,7 @@ export function StepComplete({ ev, employee, readOnly, isSupervisor, goTo, flush
           <div className="flex flex-wrap items-center gap-s6">
             <div>
               <p className="hint">{isA ? 'Ocena łączna' : 'Średnia'}</p>
-              <p className="mono text-[26px]">{formatAverage(s.averageScore)}</p>
+              <p className="text-[26px] font-semibold tabular-nums">{formatAverage(s.averageScore)}</p>
             </div>
             {s.overallLevel && (
               <div>

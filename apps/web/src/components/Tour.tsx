@@ -4,8 +4,8 @@ import type { AppUser, Role } from '@kompas/domain';
 import { homePath, useSession } from '../app/session';
 
 /*
- * Quick onboarding tour shown right after every sign-in (jury demo: supervisor, department head, HR) — not after a page refresh
- * of an already signed-in session.
+ * Quick onboarding tour shown once per account (jury demo: supervisor, department head, HR) — on the first visit of its home
+ * page; finishing or skipping it is remembered in localStorage, so it does not come back on the next sign-in.
  * Each step points at an element marked with `data-tour="…"` on the role's home page or in the sidebar;
  * a step without a target (or whose target is not on screen) is shown as a centred card.
  * The tour can be skipped at any moment and replayed from the sidebar („Samouczek”).
@@ -16,6 +16,23 @@ export interface TourStep {
   target?: string;
   title: string;
   body: ReactNode;
+}
+
+const STORAGE_KEY = (uid: string) => `kompas.tour.v1.${uid}`;
+
+export function tourSeen(uid: string): boolean {
+  try {
+    return localStorage.getItem(STORAGE_KEY(uid)) === 'done';
+  } catch {
+    return false; // storage unavailable — better to show the tour again than never
+  }
+}
+function markTourSeen(uid: string) {
+  try {
+    localStorage.setItem(STORAGE_KEY(uid), 'done');
+  } catch {
+    /* storage unavailable — nothing to remember */
+  }
 }
 
 const firstName = (u: AppUser) => u.displayName.split(' ')[0];
@@ -162,36 +179,22 @@ const TourCtx = createContext<{ start: () => void }>({ start: () => undefined })
 export const useTour = () => useContext(TourCtx);
 
 export function TourProvider({ children }: { children: ReactNode }) {
-  const { user, loading } = useSession();
+  const { user } = useSession();
   const loc = useLocation();
   const nav = useNavigate();
   const [steps, setSteps] = useState<TourStep[] | null>(null);
-  // true once the login screen has been shown in this tab: the next user that appears has just signed in
-  // (a refresh with a remembered session goes loading → user, without the signed-out state, and shows no tour)
-  const signedOut = useRef(false);
-  const pending = useRef(false);
 
+  // signing out closes a running tour
   useEffect(() => {
-    if (!loading && !user) {
-      signedOut.current = true;
-      setSteps(null); // signing out closes a running tour
-    }
-    if (user && signedOut.current) {
-      signedOut.current = false;
-      pending.current = true;
-    }
-  }, [user, loading]);
+    if (!user) setSteps(null);
+  }, [user]);
 
-  // start as soon as the role's home page is shown after the sign-in
+  // first visit of an account (not seen in this browser) → start once its home page is shown
   useEffect(() => {
-    if (!user || !pending.current || loc.pathname !== homePath(user)) return;
-    // the flag is cleared only when the tour really starts, so a re-render that cancels the timer does not lose it
+    if (!user || tourSeen(user.uid) || loc.pathname !== homePath(user)) return;
     let cancel = () => undefined as void;
     const t = window.setTimeout(() => {
-      cancel = whenPageReady(stepsForUser(user), (ready) => {
-        pending.current = false;
-        setSteps(ready);
-      });
+      cancel = whenPageReady(stepsForUser(user), (ready) => setSteps((cur) => cur ?? ready));
     }, 300);
     return () => {
       window.clearTimeout(t);
@@ -205,7 +208,11 @@ export function TourProvider({ children }: { children: ReactNode }) {
     whenPageReady(stepsForUser(user), setSteps);
   }, [user, loc.pathname, nav]);
 
-  const finish = useCallback(() => setSteps(null), []);
+  // finishing or skipping counts as seen
+  const finish = useCallback(() => {
+    if (user) markTourSeen(user.uid);
+    setSteps(null);
+  }, [user]);
 
   return (
     <TourCtx.Provider value={{ start }}>
@@ -222,8 +229,11 @@ interface Box {
   left: number;
   width: number;
   height: number;
+  radius: number;
 }
-const PAD = 8;
+/** Space between the target and the spotlight ring: roomy around sections, tight around small controls
+ *  (the sidebar items sit 4 px apart — a wider ring would cut into the neighbouring item). */
+const padFor = (r: DOMRect) => (r.height < 64 ? 2 : 8);
 const CARD_W = 380;
 const GAP = 14;
 
@@ -240,7 +250,13 @@ export function TourOverlay({ steps, onFinish }: { steps: TourStep[]; onFinish: 
 
   useEffect(() => {
     restoreFocus.current = document.activeElement;
-    return () => (restoreFocus.current as HTMLElement | null)?.focus?.();
+    // while the tour runs, sections skip their scroll reveal: a highlighted section must not still be sliding in
+    // when the spotlight measures it (that showed as a jump of the spotlight a moment later)
+    document.documentElement.dataset.tourActive = 'true';
+    return () => {
+      delete document.documentElement.dataset.tourActive;
+      (restoreFocus.current as HTMLElement | null)?.focus?.();
+    };
   }, []);
 
   // locate (and scroll to) the target; retry while the page is still loading its data
@@ -252,7 +268,10 @@ export function TourOverlay({ steps, onFinish }: { steps: TourStep[]; onFinish: 
     const measure = () => {
       if (!el || !el.isConnected) return setBox(null);
       const r = el.getBoundingClientRect();
-      setBox({ top: r.top - PAD, left: r.left - PAD, width: r.width + 2 * PAD, height: r.height + 2 * PAD });
+      const pad = padFor(r);
+      // the ring follows the target's own shape (a pill stays a pill), grown by the padding
+      const radius = (parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0) + pad;
+      setBox({ top: r.top - pad, left: r.left - pad, width: r.width + 2 * pad, height: r.height + 2 * pad, radius: Math.min(radius, r.height / 2 + pad) });
     };
     const locate = () => {
       el = findTarget(step);
@@ -307,32 +326,45 @@ export function TourOverlay({ steps, onFinish }: { steps: TourStep[]; onFinish: 
     }
   };
 
-  // card placement: below the target, else above, else to the right; centred when there is no target
+  // card placement: next to the target (below, above, right, left) with a clear gap, so the card's edges never run along
+  // the spotlight's; a target too big for any side (a whole table) gets the card inside it, inset from its corner
   const vw = window.innerWidth;
   const vh = window.innerHeight;
+  const M = 16; // viewport margin
+  const INSET = 28; // distance from the spotlight's edges when the card sits inside it
   let pos: { top: number; left: number };
-  let placement: 'below' | 'above' | 'right' | 'center' = 'center';
+  let placement: 'below' | 'above' | 'right' | 'left' | 'inside' | 'center' = 'center';
   if (box) {
-    const left = Math.min(Math.max(16, box.left), vw - CARD_W - 16);
-    if (box.top + box.height + GAP + cardH < vh - 16) {
+    const right = box.left + box.width;
+    const bottom = box.top + box.height;
+    const clampTop = (t: number) => Math.min(Math.max(M, t), vh - cardH - M);
+    const clampLeft = (l: number) => Math.min(Math.max(M, l), vw - CARD_W - M);
+    if (bottom + GAP + cardH < vh - M) {
       placement = 'below';
-      pos = { top: box.top + box.height + GAP, left };
-    } else if (box.top - GAP - cardH > 16) {
+      pos = { top: bottom + GAP, left: clampLeft(box.left) };
+    } else if (box.top - GAP - cardH > M) {
       placement = 'above';
-      pos = { top: box.top - GAP - cardH, left };
-    } else {
+      pos = { top: box.top - GAP - cardH, left: clampLeft(box.left) };
+    } else if (right + GAP + CARD_W < vw - M) {
       placement = 'right';
-      pos = { top: Math.min(Math.max(16, box.top), vh - cardH - 16), left: Math.min(box.left + box.width + GAP, vw - CARD_W - 16) };
+      pos = { top: clampTop(box.top), left: right + GAP };
+    } else if (box.left - GAP - CARD_W > M) {
+      placement = 'left';
+      pos = { top: clampTop(box.top), left: box.left - GAP - CARD_W };
+    } else {
+      placement = 'inside';
+      const visibleBottom = Math.min(bottom, vh - M);
+      pos = { top: clampTop(visibleBottom - INSET - cardH), left: clampLeft(right - INSET - CARD_W) };
     }
   } else {
-    pos = { top: Math.max(16, (vh - cardH) / 2), left: (vw - CARD_W) / 2 };
+    pos = { top: Math.max(M, (vh - cardH) / 2), left: (vw - CARD_W) / 2 };
   }
 
   return (
     <div className="tour-root" onKeyDown={onKeyDown}>
       {/* click-catcher: the page is not usable while the tour runs */}
       <div className="tour-backdrop" data-spot={!!box} aria-hidden="true" />
-      {box && <div className="tour-spotlight" aria-hidden="true" style={{ top: box.top, left: box.left, width: box.width, height: box.height }} />}
+      {box && <div className="tour-spotlight" aria-hidden="true" style={{ top: box.top, left: box.left, width: box.width, height: box.height, borderRadius: box.radius }} />}
       <div
         ref={card}
         role="dialog"

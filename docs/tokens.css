@@ -33,6 +33,8 @@
   --sf-shadow-sm: 0 1px 2px rgba(6, 6, 6, 0.013), 0 2px 6px rgba(6, 6, 6, 0.015);
   --sf-shadow-md: 0 2px 4px rgba(6, 6, 6, 0.010), 0 8px 24px rgba(6, 6, 6, 0.025);
   --sf-shadow-lg: 0 4px 8px rgba(6, 6, 6, 0.013), 0 24px 56px rgba(6, 6, 6, 0.040);
+  /* floating over a dimmed page (onboarding tour): the lg shadow disappears on the dimmed backdrop */
+  --sf-shadow-overlay: 0 2px 6px rgba(6, 6, 6, 0.08), 0 16px 40px rgba(6, 6, 6, 0.16);
 
   /* Spacing (unit 10px) */
   --sf-space-1: 5px;
@@ -49,10 +51,13 @@
   --sf-container-padding: 32px;
 
   /* Motion */
-  --sf-duration: 220ms;
+  --sf-duration: 220ms;                                /* micro-interactions: hover, toggles, collapses */
   --sf-ease: cubic-bezier(0.16, 1, 0.3, 1);
-  --sf-reveal-distance: 8px;
-  --sf-reveal-stagger: 40ms;
+  --sf-duration-enter: 520ms;                          /* sections entering / leaving the screen */
+  --sf-ease-enter: cubic-bezier(0.22, 1, 0.36, 1);     /* soft ease-out, no overshoot */
+  --sf-duration-page: 320ms;                           /* page transition (fade) */
+  --sf-reveal-distance: 12px;
+  --sf-reveal-stagger: 50ms;
 
   /* Interaction states */
   --sf-press-scale: 0.97;
@@ -178,5 +183,6 @@ code, kbd, samp { font-family: var(--sf-font-mono); }
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
   }
 }

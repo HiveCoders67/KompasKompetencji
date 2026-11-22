@@ -15,6 +15,7 @@ import { SupervisorDashboard } from '../pages/SupervisorDashboard';
 import { homePath, SessionProvider, useSession } from './session';
 import { ThemeSwitch } from '../components/ThemeSwitch';
 import { TourProvider, useTour } from '../components/Tour';
+import { useSectionReveal } from './reveal';
 
 function Sidebar() {
   const { user, has, signOut } = useSession();
@@ -87,6 +88,7 @@ function Guard({ children, role }: { children: ReactNode; role?: 'SUPERVISOR' | 
 function Shell() {
   const { user, loading } = useSession();
   const loc = useLocation();
+  useSectionReveal();
   if (loc.pathname === '/login' || (!user && !loading)) {
     return (
       <Routes>
@@ -98,7 +100,7 @@ function Shell() {
     <div className="flex min-h-screen">
       <Sidebar />
       <main className="min-w-0 flex-1 px-[32px] py-s6">
-        <div key={loc.pathname} className="mx-auto max-w-[1120px] animate-[sf-fade_var(--sf-duration)_var(--sf-ease)]">
+        <div key={loc.pathname} className="page-enter mx-auto max-w-[1120px]">
           <ErrorBoundary>
             <Routes>
               <Route path="/" element={<Guard>{user ? <Navigate to={homePath(user)} replace /> : null}</Guard>} />
