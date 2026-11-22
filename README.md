@@ -1,81 +1,90 @@
 # Kompas Kompetencji
 
-Prototyp aplikacji webowej wspierającej przełożonych w służbie cywilnej w przeprowadzeniu **pierwszej oceny** i **oceny okresowej** pracowników — w oparciu o model kompetencji, obserwowalne zachowania i asystenta AI. Projekt na HackNation 2026 (wyzwanie Ministerstwa Cyfryzacji).
+Aplikacja webowa, która prowadzi przełożonego w służbie cywilnej krok po kroku przez **pierwszą ocenę** i **ocenę okresową** pracownika: od doboru kryteriów, przez ocenę konkretnych zachowań i sugestię poziomu, po rozmowę, zatwierdzenie i arkusz PDF. Asystent AI wyjaśnia przepisy (zawsze z cytatem źródła) i pomaga przygotować rozmowę — ale **ocenę zawsze wystawia przełożony**.
 
-> **Status: działający prototyp.** Obie ścieżki (pierwsza ocena, ocena okresowa na arkuszu B i C) przechodzą od rozpoczęcia, przez kryteria i wskaźniki behawioralne, sugestię poziomu i decyzję przełożonego, po zatwierdzenie i eksport PDF. Działają Asystent Formalny (RAG z walidacją cytatów), Asystent Rozmowy, analiza OSP z wgrywaniem DOCX i panel HR. Dane są fikcyjne.
+Projekt na HackNation 2026 — wyzwanie Ministerstwa Cyfryzacji. Wszystkie dane są fikcyjne.
 
-## Szybki start dla jury
-Na ekranie logowania wybierz **„Wejście dla jury”**, a potem rolę:
+## 🌐 Wersja online
 
-| Rola | Osoba | Co pokazuje |
+**https://kompaskompetencji.web.app**
+
+Bez instalacji i bez zakładania konta — działa w przeglądarce na komputerze (aplikacja nie jest przeznaczona na smartfony).
+
+## Jak przetestować
+
+1. Otwórz aplikację i kliknij **„Wejście dla jury”**.
+2. Wybierz rolę:
+
+| Rola | Osoba | Co warto sprawdzić |
 | --- | --- | --- |
-| Przełożony | Marta Zielińska | ocena okresowa (Arkusz C), pierwsza ocena w toku i nowy pracownik do rozpoczęcia oceny |
-| Kierujący komórką | Paweł Kamiński | zatwierdzanie pierwszej oceny (arkusz podpisują przełożony i kierujący komórką) |
-| HR | Joanna Dąbrowska | statusy i terminy ustawowe, przypomnienia — bez dostępu do treści ocen (RODO) |
+| **Przełożony** | Marta Zielińska | pełna ścieżka oceny: ocena okresowa (arkusz C), pierwsza ocena w toku, nowy pracownik do rozpoczęcia oceny; asystent AI (przycisk w prawym dolnym rogu oceny i „Asystent formalny” w menu); eksport PDF |
+| **Kierujący komórką** | Paweł Kamiński | zatwierdzanie pierwszej oceny |
+| **HR** | Joanna Dąbrowska | statusy i terminy ustawowe, wysyłanie przypomnień — bez dostępu do treści ocen (RODO) |
 
-„Przywróć dane demo” (po potwierdzeniu) przywraca stan startowy scenariusza.
+3. Przy pierwszym wejściu na każde konto krótki **samouczek** pokazuje najważniejsze miejsca (można go pominąć i uruchomić ponownie przyciskiem „Samouczek” w menu).
+4. **„Przywróć dane demo”** na ekranie logowania przywraca scenariusz do stanu początkowego.
 
 ![Ścieżki oceny](docs/assets/sciezki-oceny.png)
 
-## Najważniejsze założenia
-- **Dwie ścieżki:** pierwsza ocena (skala 3/5/7) oraz ocena okresowa na arkuszu B lub C (skala 1/3/5/7/9), z analizą opisu stanowiska pracy (OSP).
-- **Model kompetencji MC:** 14 kompetencji, 49 wskaźników behawioralnych, 5 poziomów opisanych konkretnymi zachowaniami.
-- **Human-in-the-loop:** system sugeruje poziom na podstawie wskaźników, ocenę zawsze wybiera przełożony. Wynik (pozytywna/negatywna) liczony deterministycznie w kodzie, zgodnie z rozporządzeniami z 2015 i 2016 r.
-- **Asystent Formalny (RAG):** odpowiada wyłącznie na podstawie aktów prawnych i poradników KPRM, zawsze z cytatem; brak informacji → odmowa.
-- **Asystent Rozmowy:** agenda rozmowy, feedback oparty na faktach, szkice uzasadnienia i IPRZ do weryfikacji przez przełożonego.
-- **Panel HR:** statusy i terminy ocen bez dostępu do ich treści (RODO).
-- **Eksport PDF** w układzie urzędowych arkuszy.
+**Przykładowe pytania do asystenta formalnego:** „Pracownik ma średnią 5,8 z oceny okresowej, ale dostał 1 punkt za komunikację. Czy ocena jest pozytywna?” · „Ile dni ma pracownik na złożenie sprzeciwu od oceny okresowej i do kogo?” · „W jakim terminie przełożony przeprowadza rozmowę wstępną z nowym pracownikiem?”
 
-## Technologie
-React + Vite + TypeScript · Tailwind v4 · Firebase (Auth, Firestore, Cloud Functions, Hosting) · Gemini 3.5 Flash-Lite (Gemini API, płatny tier) · BM25 (minisearch) · @react-pdf/renderer · Vitest.
+## Uruchomienie lokalne (opcjonalnie)
 
-## Struktura repozytorium
-| Katalog | Zawartość |
-| --- | --- |
-| `apps/web/` | Frontend: React + Vite + TypeScript, Tailwind v4, Radix UI, eksport PDF |
-| `functions/` | Cloud Functions: asystenci AI, RAG (indeks w `functions/src/rag/`), `completeEvaluation`, synchronizacja panelu HR, dane demo |
-| `packages/domain/` | Czysta logika domenowa (wynik, sugestia, terminy, parser OSP, typy schematu) współdzielona przez UI i funkcje, z testami |
-| `docs/` | Specyfikacja: wymagania, reguły prawne, AI/RAG, dane demo, schemat Firestore, style guide, `tokens.css` |
-| `knowledge/sources/` | Źródła: ustawa o służbie cywilnej (t.j. Dz. U. 2026 poz. 590), rozporządzenia z 2015 i 2016 r., poradniki KPRM, wzory arkuszy, model kompetencji |
-| `demo-data/osp/` | Trzy opisy stanowisk pracy MC używane w scenariuszach demo |
-
-## Uruchomienie lokalne
-
-Wymagania: Node 22, Java (emulatory Firebase), Python 3 + `pypdf` (tylko do przebudowy indeksu RAG).
+Wymagania: **Node.js 22** i **Java 21+** (do emulatorów Firebase).
 
 ```bash
 npm install
-npm run emulators                 # Auth + Firestore + Functions (projekt demo-kompas)
-# w drugim terminalu:
-VITE_FIREBASE_USE_EMULATOR=true VITE_FIREBASE_PROJECT_ID=demo-kompas npm run dev
+npm run emulators     # terminal 1: lokalne Auth, Firestore i Cloud Functions
+npm run dev           # terminal 2: aplikacja → http://localhost:5173
 ```
 
-Na ekranie logowania wybierz **„Wejście dla jury”**, kliknij **„Przywróć dane demo”** (przy pierwszym uruchomieniu lub po zmianie danych demo), a potem jedną z ról. Asystenci AI na emulatorze wymagają klucza w `functions/.secret.local` (`GEMINI_API_KEY=…`).
+Następnie: **„Wejście dla jury”** → **„Przywróć dane demo”** → wybór roli. Podgląd danych w emulatorach: http://127.0.0.1:4000.
+
+Asystenci AI lokalnie wymagają własnego klucza Gemini API w pliku `functions/.secret.local` (`GEMINI_API_KEY=…`); bez klucza działa wszystko poza asystentami — dlatego do testów AI polecamy wersję online.
+
+## Opis techniczny
+
+- **Frontend:** React + TypeScript (Vite), Tailwind, Radix UI; dostępność WCAG 2.1 AA, jasny i ciemny motyw; arkusze PDF generowane w przeglądarce w układzie urzędowych wzorów.
+- **Backend:** Firebase — logowanie i role (Auth), baza danych (Firestore z regułami dostępu per rola i urząd), logika serwerowa (Cloud Functions), hosting.
+- **Logika oceny:** wynik (pozytywna / negatywna), sugestia poziomu i terminy ustawowe liczone deterministycznie w kodzie (`packages/domain`), pokryte testami — nie przez AI. Wynik zatwierdza wyłącznie serwer.
+- **AI:** model Gemini 3.5 Flash-Lite wywoływany tylko z serwera. Asystent formalny działa w trybie RAG: wyszukuje fragmenty ustawy, rozporządzeń, poradników KPRM i modelu kompetencji, a kod sprawdza, czy każdy cytat rzeczywiście w nich występuje; brak podstawy w źródłach → odmowa zamiast zgadywania.
+- **Prywatność:** HR widzi wyłącznie statusy i terminy, nigdy treści ocen (osobna kolekcja danych).
+
+```
+Przeglądarka (React) ──► Firebase Auth (role)
+        │              ──► Firestore (oceny, terminy, przypomnienia)
+        └──► Cloud Functions ──► zatwierdzenie wyniku · asystenci AI ──► Gemini API
+                                                        └─► indeks źródeł prawnych (RAG)
+```
+
+Architektura jest przygotowana pod przyszłe integracje z systemami klasy EZD i kadrowymi (np. QNT) — szczegóły w dokumentacji.
+
+## Dokumentacja
+
+| Dokument | Zawartość |
+| --- | --- |
+| [Kontekst i wymagania](docs/01_context_and_requirements.md) | zakres, role, ścieżki, decyzje projektowe, wymogi przed wdrożeniem produkcyjnym |
+| [Logika domenowa i przepisy](docs/02_domain_logic_and_rules.md) | reguły prawne, model kompetencji, wzór sugestii, terminy |
+| [Asystenci AI i RAG](docs/03_ai_assistants_and_rag_spec.md) | jak działa AI i jakie ma zabezpieczenia |
+| [Dane demo i formularze](docs/04_test_data_osp_and_forms.md) | scenariusze testowe, opisy stanowisk, arkusze |
+| [Struktura bazy danych](docs/firebase/firestore_structure.md) | kolekcje, uprawnienia, reguły bezpieczeństwa |
+
+<details>
+<summary>Dla zespołu: testy i wdrożenie</summary>
 
 | Polecenie | Co robi |
 | --- | --- |
-| `npm test` | testy domeny (wynik, sugestia, terminy, parser OSP, kodek), funkcji (RAG, walidacja cytatów) i UI/PDF |
-| `npm run test:rules` | testy reguł Firestore na emulatorze |
+| `npm test` | testy domeny, funkcji (RAG, walidacja cytatów) i UI |
 | `npm run typecheck` | TypeScript we wszystkich pakietach |
-| `npm run kb:build` | przebudowa `competencies.json`, profili demo OSP i indeksu RAG z `knowledge/sources/` |
-| `GEMINI_API_KEY=… npm run eval:assistant -w functions` | zestaw testów asystenta na żywym modelu (po każdej zmianie promptu lub indeksu) |
-| `npx tsx functions/scripts/smoke-emulator.ts` | test end-to-end na emulatorach (reguły, `completeEvaluation`, trigger trackingu) |
+| `npm run test:rules` | testy reguł Firestore na emulatorze |
+| `npx tsx functions/scripts/smoke-emulator.ts` | test end-to-end na emulatorach |
+| `GEMINI_API_KEY=… npm run eval:assistant -w functions` | zestaw testów asystenta na żywym modelu |
+| `npm run kb:build` | przebudowa modelu kompetencji i indeksu RAG z `knowledge/sources/` (Python 3 + `pypdf`) |
 
-## Wdrożenie (Firebase, plan Blaze)
+Wdrożenie: push do `main` uruchamia GitHub Actions (`npm run deploy`). Ręcznie: `npx firebase functions:secrets:set GEMINI_API_KEY`, potem `npm run deploy`.
 
-```bash
-npx firebase functions:secrets:set GEMINI_API_KEY   # klucz z Google AI Studio (projekt z płatnym tierem)
-npm run deploy                                      # build web + functions, reguły, indeksy, hosting
-GOOGLE_APPLICATION_CREDENTIALS=<klucz-konta-serwisowego>.json npm run seed:prod
-```
-
-## Dokumentacja
-1. [Kontekst i wymagania](docs/01_context_and_requirements.md)
-2. [Logika domenowa i przepisy](docs/02_domain_logic_and_rules.md)
-3. [Asystenci AI i RAG](docs/03_ai_assistants_and_rag_spec.md)
-4. [Dane testowe i formularze](docs/04_test_data_osp_and_forms.md)
-5. [Struktura Firestore](docs/firebase/firestore_structure.md)
-6. [Style guide](docs/STYLE_GUIDE.md)
+</details>
 
 ## Bezpieczeństwo i RODO
-Prototyp działa na danych fikcyjnych. Przed wdrożeniem produkcyjnym wymagane są m.in.: pseudonimizacja treści wysyłanych do modelu językowego lub model on-premise (Bielik / PLLuM), umowa powierzenia przetwarzania oraz integracja uwierzytelniania z systemami urzędu. Szczegóły: [01 § 9.2](docs/01_context_and_requirements.md).
+
+Prototyp działa na danych fikcyjnych. Przed wdrożeniem produkcyjnym wymagane są m.in.: pseudonimizacja treści wysyłanych do modelu językowego lub model uruchamiany w infrastrukturze urzędu (np. Bielik / PLLuM), umowa powierzenia przetwarzania oraz integracja logowania z systemami urzędu. Szczegóły: [01 § 9.2](docs/01_context_and_requirements.md).
