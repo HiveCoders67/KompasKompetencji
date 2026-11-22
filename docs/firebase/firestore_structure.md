@@ -48,8 +48,11 @@ Minimalny profil ocenianego pracownika wraz z zagnieżdżonymi danymi z Opisu St
   "employmentType": "CIVIL_SERVICE_EMPLOYEE | CIVIL_SERVANT",
   "contractType": "DEFINITE_12M | SUBSTITUTION | INDEFINITE",
   "hireDate": "Timestamp (data kalendarzowa)",
+  "indefiniteEmploymentDate": "Timestamp (data kalendarzowa) | null",
   "supervisorId": "ref(users/{uid})",
   "departmentHeadId": "ref(users/{uid})",
+  "departmentHeadName": "Paweł Kamiński",
+  "departmentHeadPosition": "Dyrektor Departamentu",
   "absences": [
     { "from": "Timestamp (data kalendarzowa)", "to": "Timestamp (data kalendarzowa)" }
   ],
@@ -72,6 +75,10 @@ Minimalny profil ocenianego pracownika wraz z zagnieżdżonymi danymi z Opisu St
   }
 }
 ```
+
+* **`hireDate`** — data nawiązania stosunku pracy w służbie cywilnej (podstawa terminów pierwszej oceny, art. 38 ust. 1).
+* **`indefiniteEmploymentDate`** — data zatrudnienia na czas nieokreślony (umowa albo mianowanie); podstawa terminu **pierwszej oceny okresowej** (24 miesiące, § 7 pkt 1 rozp. z 2016 r.), gdy brak `lastPeriodicEvaluation`. Wymagana dla `contractType: INDEFINITE`, `null` dla `DEFINITE_12M` / `SUBSTITUTION`. Po pozytywnej pierwszej ocenie i nowej umowie różni się od `hireDate`.
+* **`departmentHeadName`, `departmentHeadPosition`** — kopie danych z `users/{departmentHeadId}` do wyświetlania (Część I arkusza pierwszej oceny); przełożony nie ma odczytu kolekcji `users`, więc dane są zdenormalizowane i ustawiane przez Admin SDK (seed / przyszła integracja z systemem kadrowym).
 
 > **Uwagi projektowe:**
 > * Pole `osp` jest zagnieżdżone w dokumencie pracownika, aby od razu przekazywać kontekst stanowiska do analizy OSP i Asystenta Rozmowy.
@@ -299,7 +306,7 @@ Wszystkie reguły dodatkowo wymagają zgodności `officeId` z `request.auth.toke
 
 * **`users`:** odczyt własnego profilu lub przez `HR_ADMIN`. Klient nie może zapisywać pola `roles` (role nadaje skrypt / Cloud Function przez Admin SDK).
 * **`competencies`:** odczyt dla każdego zalogowanego; zapis wyłącznie Admin SDK (seed).
-* **`employees`:** odczyt dla przypisanego `supervisorId`, `departmentHeadId` oraz `HR_ADMIN`. Przełożony może edytować `osp` i `absences`, ale **nie** `supervisorId`, `departmentHeadId`, `employmentType`, `contractType`, `hireDate`.
+* **`employees`:** odczyt dla przypisanego `supervisorId`, `departmentHeadId` oraz `HR_ADMIN`. Przełożony może edytować `osp` i `absences`, ale **nie** `supervisorId`, `departmentHeadId`, `departmentHeadName`, `departmentHeadPosition`, `employmentType`, `contractType`, `hireDate`, `indefiniteEmploymentDate`.
 * **`evaluations`:**
   * `SUPERVISOR`: tworzenie tylko, gdy `employees/{employeeId}.supervisorId` wskazuje na niego; odczyt i zapis dokumentów, gdzie `supervisorId` wskazuje na niego. Zakaz zapisu `summary` i `departmentHeadApprovedAt`. Po `COMPLETED` dozwolone wyłącznie przejście do `ACKNOWLEDGED` z ustawieniem `deadlines.acknowledgedAt`.
   * `DEPARTMENT_HEAD`: odczyt dokumentów, gdzie `departmentHeadId` wskazuje na niego i `type == FIRST_EVALUATION`; zapis wyłącznie `departmentHeadApprovedAt`.

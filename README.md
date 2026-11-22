@@ -2,7 +2,18 @@
 
 Prototyp aplikacji webowej wspierającej przełożonych w służbie cywilnej w przeprowadzeniu **pierwszej oceny** i **oceny okresowej** pracowników — w oparciu o model kompetencji, obserwowalne zachowania i asystenta AI. Projekt na HackNation 2026 (wyzwanie Ministerstwa Cyfryzacji).
 
-> Status: etap specyfikacji. Kod aplikacji powstaje w `apps/`, `functions/` i `packages/`.
+> **Status: działający prototyp.** Obie ścieżki (pierwsza ocena, ocena okresowa na arkuszu B i C) przechodzą od rozpoczęcia, przez kryteria i wskaźniki behawioralne, sugestię poziomu i decyzję przełożonego, po zatwierdzenie i eksport PDF. Działają Asystent Formalny (RAG z walidacją cytatów), Asystent Rozmowy, analiza OSP z wgrywaniem DOCX i panel HR. Dane są fikcyjne.
+
+## Szybki start dla jury
+Na ekranie logowania wybierz **„Wejście dla jury”**, a potem rolę:
+
+| Rola | Osoba | Co pokazuje |
+| --- | --- | --- |
+| Przełożony | Marta Zielińska | ocena okresowa (Arkusz C), pierwsza ocena w toku i nowy pracownik do rozpoczęcia oceny |
+| Kierujący komórką | Paweł Kamiński | zatwierdzanie pierwszej oceny (arkusz podpisują przełożony i kierujący komórką) |
+| HR | Joanna Dąbrowska | statusy i terminy ustawowe, przypomnienia — bez dostępu do treści ocen (RODO) |
+
+„Przywróć dane demo” (po potwierdzeniu) przywraca stan startowy scenariusza.
 
 ![Ścieżki oceny](docs/assets/sciezki-oceny.png)
 
@@ -21,6 +32,9 @@ React + Vite + TypeScript · Tailwind v4 · Firebase (Auth, Firestore, Cloud Fun
 ## Struktura repozytorium
 | Katalog | Zawartość |
 | --- | --- |
+| `apps/web/` | Frontend: React + Vite + TypeScript, Tailwind v4, Radix UI, eksport PDF |
+| `functions/` | Cloud Functions: asystenci AI, RAG (indeks w `functions/src/rag/`), `completeEvaluation`, synchronizacja panelu HR, dane demo |
+| `packages/domain/` | Czysta logika domenowa (wynik, sugestia, terminy, parser OSP, typy schematu) współdzielona przez UI i funkcje, z testami |
 | `docs/` | Specyfikacja: wymagania, reguły prawne, AI/RAG, dane demo, schemat Firestore, style guide, `tokens.css` |
 | `knowledge/sources/` | Źródła: ustawa o służbie cywilnej (t.j. Dz. U. 2026 poz. 590), rozporządzenia z 2015 i 2016 r., poradniki KPRM, wzory arkuszy, model kompetencji |
 | `demo-data/osp/` | Trzy opisy stanowisk pracy MC używane w scenariuszach demo |
@@ -36,7 +50,7 @@ npm run emulators                 # Auth + Firestore + Functions (projekt demo-k
 VITE_FIREBASE_USE_EMULATOR=true VITE_FIREBASE_PROJECT_ID=demo-kompas npm run dev
 ```
 
-Na ekranie logowania kliknij **„Przywróć dane demo”**, a potem jeden z przycisków „Wejdź jako…”. Asystenci AI na emulatorze wymagają klucza w `functions/.secret.local` (`GEMINI_API_KEY=…`).
+Na ekranie logowania wybierz **„Wejście dla jury”**, kliknij **„Przywróć dane demo”** (przy pierwszym uruchomieniu lub po zmianie danych demo), a potem jedną z ról. Asystenci AI na emulatorze wymagają klucza w `functions/.secret.local` (`GEMINI_API_KEY=…`).
 
 | Polecenie | Co robi |
 | --- | --- |

@@ -122,7 +122,9 @@ export function buildNewEvaluation({ id, employee, supervisor, now, baseDate, af
   } else if (afterNegative) {
     deadlines = { ...empty, ...afterNegativeDeadlines(afterNegative.drawnUpOn, afterNegative.acknowledgedOn) };
   } else {
-    const base = baseDate ?? employee.lastPeriodicEvaluation?.date ?? employee.hireDate;
+    // 24 months from the previous evaluation drawn up in writing, or from the indefinite employment (§ 7 pkt 1 rozp. 2016);
+    // hireDate only as a last resort for data without indefiniteEmploymentDate
+    const base = baseDate ?? employee.lastPeriodicEvaluation?.date ?? employee.indefiniteEmploymentDate ?? employee.hireDate;
     const d = periodicDeadlines(base, employee.absences);
     deadlines = { ...empty, initialTalkDue: d.initialTalkDue, evaluationDueDate: d.evaluationDueDate };
   }

@@ -193,6 +193,22 @@ export function DeadlineBadge({ due, today, done, doneOn, label }: { due: DateOn
   );
 }
 
+/**
+ * Objection deadline (art. 83 ust. 1): once it has passed the window is simply closed — not an overdue task,
+ * so it gets a neutral „upłynął” instead of the red „po terminie”.
+ */
+export function ObjectionDeadlineBadge({ due, today }: { due: DateOnly | null; today: DateOnly }) {
+  if (due && due < today) {
+    return (
+      <span className="inline-flex items-center gap-2">
+        <span className="mono text-sm">{formatPL(due)}</span>
+        <span className="badge badge-outline">upłynął</span>
+      </span>
+    );
+  }
+  return <DeadlineBadge due={due} today={today} done={false} />;
+}
+
 export function Modal({
   open,
   onOpenChange,

@@ -11,7 +11,7 @@ import {
   type Reminder,
 } from '@kompas/domain';
 import { useSession } from '../app/session';
-import { Alert, Card, DeadlineBadge, Empty, EvalKind, Field, Modal, PageHeader, Spinner, StatusBadge } from '../components/ui';
+import { Alert, Card, DeadlineBadge, Empty, EvalKind, Field, Modal, ObjectionDeadlineBadge, PageHeader, Spinner, StatusBadge } from '../components/ui';
 import { sendReminder, watchOfficeReminders, watchTracking } from '../data/repo';
 
 /*
@@ -187,7 +187,7 @@ export function HrPanel() {
                   </td>
                   <td>
                     <p className="text-sm">{a.label}</p>
-                    <DeadlineBadge due={a.due} today={now} done={false} />
+                    {t.status === 'ACKNOWLEDGED' ? <ObjectionDeadlineBadge due={a.due} today={now} /> : <DeadlineBadge due={a.due} today={now} done={false} />}
                   </td>
                   <td className="text-sm">{t.supervisorName}</td>
                   <td className="text-right">

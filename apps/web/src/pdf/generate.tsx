@@ -244,6 +244,8 @@ function FirstSheet({ ev, employee, draft, part }: { ev: Evaluation; employee: E
   const positive = result?.finalResult === 'POSITIVE';
   const emp = split(ev.employeeName);
   const sup = split(ev.supervisorName);
+  // documents seeded before these fields existed have no head data — the form then keeps empty lines to fill in by hand
+  const head = split(employee.departmentHeadName ?? '');
   const d = ev.deadlines;
   return (
     <Shell ev={ev} draft={draft} annex="Załącznik nr 2 do rozporządzenia Prezesa Rady Ministrów z dnia 23 lipca 2015 r. (Dz. U. poz. 1144) — WZÓR">
@@ -257,7 +259,7 @@ function FirstSheet({ ev, employee, draft, part }: { ev: Evaluation; employee: E
       <Text style={s.h}>DANE BEZPOŚREDNIEGO PRZEŁOŻONEGO</Text>
       <KV items={[['Imię', sup.first], ['Nazwisko', sup.last], ['Komórka organizacyjna', employee.osp.unit], ['Stanowisko pracy', employee.osp.directSupervisorPosition]]} />
       <Text style={s.h}>DANE KIERUJĄCEGO KOMÓRKĄ ORGANIZACYJNĄ</Text>
-      <KV items={[['Imię', ''], ['Nazwisko', ''], ['Komórka organizacyjna', employee.osp.department], ['Stanowisko pracy', '']]} />
+      <KV items={[['Imię', head.first], ['Nazwisko', head.last], ['Komórka organizacyjna', employee.osp.department], ['Stanowisko pracy', employee.departmentHeadPosition ?? '']]} />
 
       <Text style={s.part}>II. ROZMOWA WSTĘPNA</Text>
       <KV

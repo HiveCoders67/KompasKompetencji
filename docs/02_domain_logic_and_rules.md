@@ -89,7 +89,7 @@ $$\bar{x} = \frac{\sum_{i=1}^{n} p_i}{n}, \quad n \in \{5, 6, 7, 8\}$$
 * Wynik końcowy wylicza i zapisuje Cloud Function `completeEvaluation` (ta sama funkcja z `packages/domain`, co w UI).
 
 ### 1.6. Terminy i formalności (Ocena Okresowa)
-* **Cykl podstawowy:** Co **24 miesiące** od poprzedniej oceny lub zatrudnienia na czas nieokreślony.
+* **Cykl podstawowy:** Co **24 miesiące** (art. 81 ust. 4) od dnia sporządzenia na piśmie poprzedniej oceny, a przy pierwszej ocenie okresowej — od dnia zatrudnienia na czas nieokreślony (§ 7 pkt 1 rozp.). Ta data **nie jest** datą nawiązania stosunku pracy (`hireDate`), jeśli pracownik zaczynał od umowy 12-miesięcznej (art. 35 ust. 3) — dlatego przechowujemy ją osobno w `employees.indefiniteEmploymentDate`.
 * **Rozmowa rozpoczynająca (Część I arkusza):** Do **30 dni** od poprzedniej oceny / zatrudnienia. Okres podlegania ocenie biegnie od daty zapoznania pracownika z kryteriami (Część I) do daty sporządzenia oceny na piśmie (Część II).
 * **Po ocenie negatywnej (art. 81 ust. 9):** Ponowna ocena po upływie **6 miesięcy** od zapoznania się z oceną negatywną (niezwłocznie po dniu, w którym mija 6 miesięcy — np. zapoznanie 15.02 → ocena 16.08); rozmowa rozpoczynająca i wybór kryteriów w ciągu **7 dni** od sporządzenia negatywnej oceny (§ 7 pkt 2 rozp.). Ponowna ocena jest nową oceną (mogą być nowe kryteria). Ten 6-miesięczny termin **nie przedłuża się** o nieobecność (art. 81 ust. 7) i **nie zmienia** na podstawie art. 81 ust. 8 — oba przepisy dotyczą wyłącznie terminu 24-miesięcznego (Poradnik KPRM – Oceny okresowe, s. 13).
 * **Przedłużenie o nieobecność (art. 81 ust. 7):** Nieprzerwana usprawiedliwiona nieobecność **dłuższa niż 1 miesiąc** wydłuża 24-miesięczny termin o czas tej nieobecności. W danych przechowujemy wyłącznie okresy nieobecności (`absences: [{from, to}]`), bez przyczyny.
@@ -204,7 +204,7 @@ $$\bar{x} = \frac{\sum_{i=1}^{5} p_i}{5}$$
 
 ### 4.3. Wersja robocza
 * **Autozapis** do Firestore w tle (debounce kilka sekund po zmianie), wskaźnik „Zapisano HH:MM” w nagłówku.
-* Przycisk **„Zapisz wersję roboczą i wyjdź”** na każdym kroku steppera.
+* Osobny przycisk zapisu nie jest potrzebny: nad nazwiskiem ocenianego jest link powrotu **„‹ Moje oceny”** (kierujący komórką: „‹ Zatwierdzenia”). Przed wyjściem czeka na zapis bieżących zmian; jeśli zapis się nie uda, użytkownik zostaje na stronie, a błąd z przyciskiem „Spróbuj ponownie” widać przy statusie zapisu. Zamknięcie karty z niezapisanymi zmianami wywołuje ostrzeżenie przeglądarki.
 * Lista ocen przełożonego pokazuje oceny w toku z przyciskiem „Kontynuuj” (otwiera ostatni krok).
 
 ### 4.4. Zatwierdzenie

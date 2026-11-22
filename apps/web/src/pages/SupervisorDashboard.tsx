@@ -9,7 +9,7 @@ import {
   type Evaluation,
 } from '@kompas/domain';
 import { useSession } from '../app/session';
-import { Alert, Card, DeadlineBadge, Empty, EvalKind, PageHeader, Spinner, StatusBadge, rowLink } from '../components/ui';
+import { Alert, Card, DeadlineBadge, Empty, EvalKind, ObjectionDeadlineBadge, PageHeader, Spinner, StatusBadge, rowLink } from '../components/ui';
 import { createEvaluation, newEvaluationId, watchEmployees, watchSupervisorEvaluations } from '../data/repo';
 
 /** „Krok 3 z 5: Ocena wskaźników · ocenione 2 z 5” — the same step numbering as the stepper. */
@@ -165,7 +165,7 @@ export function SupervisorDashboard() {
                     <StatusBadge status={e.status} type={e.type} />
                   </td>
                   <td>
-                    <DeadlineBadge due={e.deadlines.objectionDeadline} today={now} done={false} />
+                    <ObjectionDeadlineBadge due={e.deadlines.objectionDeadline} today={now} />
                   </td>
                   <td className="text-right">
                     <Link className="btn btn-secondary btn-sm" to={`/oceny/${e.id}`}>

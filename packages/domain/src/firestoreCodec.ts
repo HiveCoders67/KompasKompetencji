@@ -28,7 +28,7 @@ const REF_FIELDS: Record<string, string> = {
 };
 
 /** Calendar-date fields (besides every field inside `deadlines`). */
-const DATE_FIELDS = new Set(['hireDate', 'from', 'to', 'date', 'until', 'currentRankGrantedAt']);
+const DATE_FIELDS = new Set(['hireDate', 'indefiniteEmploymentDate', 'from', 'to', 'date', 'until', 'currentRankGrantedAt']);
 const INSTANT_FIELDS = new Set(['createdAt', 'updatedAt', 'completedAt', 'computedAt', 'departmentHeadApprovedAt']);
 
 type Kind = 'ref' | 'date' | 'instant' | null;

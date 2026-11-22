@@ -120,8 +120,17 @@ export interface Employee {
   employmentType: EmploymentType;
   contractType: ContractType;
   hireDate: DateOnly;
+  /**
+   * Start of employment for an indefinite period (contract or appointment) — the base of the first periodic
+   * evaluation (§ 7 pkt 1 rozp. 2016; art. 81 ust. 4 ustawy). Differs from `hireDate` when the person started on a
+   * 12-month contract (art. 35 ust. 3). null for DEFINITE_12M / SUBSTITUTION.
+   */
+  indefiniteEmploymentDate: DateOnly | null;
   supervisorId: string;
   departmentHeadId: string;
+  /** Display copies from users/{departmentHeadId} — Part I of the first-evaluation form (the supervisor cannot read users). */
+  departmentHeadName: string;
+  departmentHeadPosition: string;
   absences: Absence[];
   osp: Osp;
   lastPeriodicEvaluation: LastPeriodicEvaluation | null;

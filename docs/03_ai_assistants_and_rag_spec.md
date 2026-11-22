@@ -3,7 +3,7 @@
 ## 1. Wymagania ogólne wobec AI
 * **Model:** wyłącznie **Gemini 3.5 Flash-Lite** (`gemini-3.5-flash-lite`) przez Gemini API, płatny tier, `thinkingLevel: minimal`, odpowiedzi w trybie JSON (`responseMimeType`, dla Asystenta Formalnego z pełnym `responseSchema`). Świadome odstępstwo od wymogu darmowych narzędzi AI (uzasadnienie: `01_context_and_requirements.md` § 5 pkt 2). Pomiar 21.11.2026: ok. 1 s na odpowiedź, zestaw testów asystenta 30/30 w trzech przebiegach (wcześniej Gemma 4 31B: 55–80 s). Model i poziom myślenia ustawiane parametrami `GEMINI_MODEL` / `GEMINI_THINKING_LEVEL` (domyślnie powyższe).
 * **Wywołania wyłącznie z Cloud Functions** — klucz API nigdy nie trafia do przeglądarki. Dostawca schowany za interfejsem `LlmProvider` (w produkcji: model on-premise, np. Bielik / PLLuM).
-* **Brak przełączania na inne modele.** Gdy API zwróci błąd limitu (HTTP 429) lub wyczerpanie zasobów (także brak środków na koncie, HTTP 402), UI wyświetla komunikat: *„Wyczerpano dostępne zasoby asystenta AI. Spróbuj ponownie później.”* — bez fallbacku.
+* **Brak przełączania na inne modele.** Gdy API zwróci błąd limitu (HTTP 429) lub status `RESOURCE_EXHAUSTED` — tak Gemini API zgłasza też wyczerpanie przedpłaconych środków (wtedy z kodem HTTP 402) — UI wyświetla komunikat: *„Wyczerpano dostępne zasoby asystenta AI. Spróbuj ponownie później.”* — bez fallbacku.
 * **Rola wyłącznie doradcza i wspierająca:** AI **nigdy** nie wystawia oceny pracownika ani nie podejmuje decyzji kadrowych.
 * **Dane osobowe:** prototyp działa na danych fikcyjnych i **nie stosuje pseudonimizacji**. W dokumentacji dla jury wskazujemy wymóg produkcyjny: pseudonimizacja promptów lub model on-premise + umowa powierzenia.
 

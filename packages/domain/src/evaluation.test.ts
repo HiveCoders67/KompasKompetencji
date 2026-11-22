@@ -37,6 +37,26 @@ describe('competency model (xlsx)', () => {
   });
 });
 
+describe('periodic deadline base (§ 7 pkt 1 rozp. 2016, art. 81 ust. 4)', () => {
+  const first = { ...emp('emp_wojcik'), hireDate: '2021-03-01', indefiniteEmploymentDate: '2022-03-01', lastPeriodicEvaluation: null, absences: [] };
+
+  it('first periodic evaluation counts from the indefinite employment, not from the first 12-month contract', () => {
+    const ev = buildNewEvaluation({ id: 'x', employee: first, supervisor: marta, now: NOW });
+    expect(ev.deadlines.initialTalkDue).toBe('2022-03-31');
+    expect(ev.deadlines.evaluationDueDate).toBe('2024-03-01');
+  });
+
+  it('a previous evaluation drawn up in writing takes precedence', () => {
+    const ev = buildNewEvaluation({
+      id: 'x',
+      employee: { ...first, lastPeriodicEvaluation: { result: 'POSITIVE', level: 'MEETS_EXPECTATIONS', date: '2024-02-15' } },
+      supervisor: marta,
+      now: NOW,
+    });
+    expect(ev.deadlines.evaluationDueDate).toBe('2026-02-15');
+  });
+});
+
 describe('evaluation workflow', () => {
   it('new periodic evaluation: form C, 5 mandatory criteria, all indicators preselected', () => {
     const ev = buildNewEvaluation({ id: 'x', employee: emp('emp_wojcik'), supervisor: marta, now: NOW });

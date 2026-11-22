@@ -92,7 +92,11 @@ export const JURY_ENTRY: { label: string; uid: string; description: string }[] =
   { label: 'Wejdź jako HR', uid: 'hr_admin', description: 'Joanna Dąbrowska — terminy i przypomnienia, bez treści ocen' },
 ];
 
-const emp = (e: Omit<Employee, 'officeId'>): Employee => ({ ...e, officeId: DEMO_OFFICE_ID });
+/** Fills the office and the department head's display data from DEMO_USERS. */
+const emp = (e: Omit<Employee, 'officeId' | 'departmentHeadName' | 'departmentHeadPosition'>): Employee => {
+  const head = DEMO_USERS.find((u) => u.uid === e.departmentHeadId)!;
+  return { ...e, officeId: DEMO_OFFICE_ID, departmentHeadName: head.displayName, departmentHeadPosition: head.position };
+};
 
 export const DEMO_EMPLOYEES: Employee[] = [
   // Scenario 1 — senior specialist, form C
@@ -103,6 +107,7 @@ export const DEMO_EMPLOYEES: Employee[] = [
     employmentType: 'CIVIL_SERVICE_EMPLOYEE',
     contractType: 'INDEFINITE',
     hireDate: '2020-03-02',
+    indefiniteEmploymentDate: '2021-03-02', // after a 12-month contract and a positive first evaluation
     supervisorId: 'sup_dc',
     departmentHeadId: 'head_dc',
     absences: [{ from: '2025-11-03', to: '2025-12-16' }],
@@ -117,6 +122,7 @@ export const DEMO_EMPLOYEES: Employee[] = [
     employmentType: 'CIVIL_SERVANT',
     contractType: 'INDEFINITE',
     hireDate: '2018-09-01',
+    indefiniteEmploymentDate: '2019-09-01', // after a 12-month contract and a positive first evaluation
     supervisorId: 'sup_dsi',
     departmentHeadId: 'head_dsi',
     absences: [],
@@ -131,6 +137,7 @@ export const DEMO_EMPLOYEES: Employee[] = [
     employmentType: 'CIVIL_SERVANT',
     contractType: 'INDEFINITE',
     hireDate: '2016-02-01',
+    indefiniteEmploymentDate: '2017-02-01', // after a 12-month contract and a positive first evaluation
     supervisorId: 'sup_dwm',
     departmentHeadId: 'sup_dwm',
     absences: [],
@@ -145,6 +152,7 @@ export const DEMO_EMPLOYEES: Employee[] = [
     employmentType: 'CIVIL_SERVICE_EMPLOYEE',
     contractType: 'DEFINITE_12M',
     hireDate: '2026-02-02',
+    indefiniteEmploymentDate: null,
     supervisorId: 'sup_dc',
     departmentHeadId: 'head_dc',
     absences: [],
@@ -159,6 +167,7 @@ export const DEMO_EMPLOYEES: Employee[] = [
     employmentType: 'CIVIL_SERVICE_EMPLOYEE',
     contractType: 'DEFINITE_12M',
     hireDate: '2026-10-20',
+    indefiniteEmploymentDate: null,
     supervisorId: 'sup_dsi',
     departmentHeadId: 'head_dsi',
     absences: [],
@@ -173,6 +182,7 @@ export const DEMO_EMPLOYEES: Employee[] = [
     employmentType: 'CIVIL_SERVICE_EMPLOYEE',
     contractType: 'DEFINITE_12M',
     hireDate: '2026-11-16',
+    indefiniteEmploymentDate: null,
     supervisorId: 'sup_dc',
     departmentHeadId: 'head_dc',
     absences: [],

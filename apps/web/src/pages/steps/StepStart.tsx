@@ -137,7 +137,10 @@ export function StepStart({ ev, employee, update, readOnly, next }: StepProps) {
               <p className="label">Termin sporządzenia oceny</p>
               <p className="mono text-lg">{formatPL(d.evaluationDueDate)}</p>
               <p className="hint">
-                24 miesiące od poprzedniej oceny (art. 81 ust. 1 ustawy)
+                {employee.lastPeriodicEvaluation
+                  ? '24 miesiące od sporządzenia poprzedniej oceny'
+                  : `24 miesiące od zatrudnienia na czas nieokreślony (${formatPL(employee.indefiniteEmploymentDate ?? employee.hireDate)})`}{' '}
+                (art. 81 ust. 4 ustawy, § 7 pkt 1 rozp. z 2016 r.)
                 {employee.absences.length > 0 && ', z przedłużeniem o nieobecności dłuższe niż miesiąc (art. 81 ust. 7)'}.
               </p>
             </div>
