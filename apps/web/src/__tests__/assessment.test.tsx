@@ -52,6 +52,18 @@ describe('Assessment step — human in the loop', () => {
     expect(screen.getByText(/inna niż sugestia systemu/)).toBeTruthy();
   });
 
+  it('the sticky progress bar counts scored criteria and lists every criterion', async () => {
+    render(<Harness />);
+    const bar = screen.getByRole('progressbar', { name: 'Ocenione kryteria' });
+    expect(bar.getAttribute('aria-valuenow')).toBe('0');
+    const sticky = within(bar.parentElement as HTMLElement);
+    expect(sticky.getAllByRole('button', { name: /bez oceny$/ })).toHaveLength(latest.criteriaAssessments.length);
+    const scores = screen.getByRole('radiogroup', { name: /Ocena cząstkowa: Wykorzystywanie wiedzy/ });
+    await act(async () => fireEvent.click(within(scores).getByRole('radio', { name: '5' })));
+    expect(bar.getAttribute('aria-valuenow')).toBe('1');
+    expect(sticky.getByRole('button', { name: /Wykorzystywanie wiedzy.*— ocena 5 pkt/ })).toBeTruthy();
+  });
+
   it('level 1 on path B shows the negative-result warning', async () => {
     render(<Harness />);
     const g = screen.getAllByRole('radiogroup', { name: /Zaobserwowane zachowanie/ })[0];

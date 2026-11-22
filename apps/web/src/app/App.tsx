@@ -30,7 +30,9 @@ function Sidebar() {
   return (
     <aside className="sticky top-0 flex h-screen w-[264px] shrink-0 flex-col gap-s5 border-r border-line bg-surface p-s4">
       <Link to={homePath(user)} className="brand-link px-2 pt-2" aria-label="Kompas Kompetencji — strona główna">
-        <p className="font-heading text-[22px] leading-tight tracking-[-0.017em]">Kompas Kompetencji</p>
+        <p className="font-heading text-[22px] leading-tight tracking-[-0.017em]">
+          Kompas Kompetencji<span className="brand-dot" aria-hidden="true">.</span>
+        </p>
         <p className="hint">Ocena w służbie cywilnej</p>
       </Link>
       <nav aria-label="Nawigacja główna" className="flex flex-col gap-1">

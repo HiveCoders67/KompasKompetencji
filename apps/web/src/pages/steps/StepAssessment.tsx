@@ -1,6 +1,6 @@
 import * as Checkbox from '@radix-ui/react-checkbox';
 import * as RadioGroup from '@radix-ui/react-radio-group';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   COMPETENCY_BY_CODE,
   LEVEL_ONE_WARNING,
@@ -42,15 +42,13 @@ export function StepAssessment({ ev, update, readOnly, next, goTo }: StepProps) 
   /** Opens a criterion and brings it into view (from the „what is missing” hint under „Dalej”). */
   const showCriterion = (code: string) => {
     setOpen((prev) => new Set(prev).add(code));
-    requestAnimationFrame(() => document.getElementById(`criterion-head-${code}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    requestAnimationFrame(() => document.getElementById(`criterion-card-${code}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   };
 
   const patch = (code: string, fn: (c: CriterionAssessment) => CriterionAssessment) =>
     update((e: Evaluation) => ({ ...e, criteriaAssessments: e.criteriaAssessments.map((c) => (c.competencyId === code ? fn(c) : c)) }));
   const patchIndicator = (code: string, id: string, fn: (i: IndicatorAssessment) => IndicatorAssessment) =>
     patch(code, (c) => ({ ...c, indicatorAssessments: c.indicatorAssessments.map((i) => (i.indicatorId === id ? fn(i) : i)) }));
-
-  const scored = ev.criteriaAssessments.filter((c) => c.finalScore !== null).length;
 
   return (
     <div className="flex flex-col gap-s5">
@@ -63,17 +61,14 @@ export function StepAssessment({ ev, update, readOnly, next, goTo }: StepProps) 
         </ul>
       </Alert>
 
-      <p className="hint">
-        Ocenione kryteria: <strong className="text-fg">{scored}</strong> / {ev.criteriaAssessments.length}. System wylicza sugestię ze wskaźników — ocenę cząstkową
-        wybierasz Ty i nie musisz uzasadniać odstępstwa.
-      </p>
+      <AssessmentProgress criteria={ev.criteriaAssessments} onJump={showCriterion} />
 
       {ev.criteriaAssessments.map((c) => {
         const comp = COMPETENCY_BY_CODE[c.competencyId];
         const expanded = open.has(c.competencyId);
         const selectedCount = c.indicatorAssessments.filter((i) => i.selected).length;
         return (
-          <Card key={c.competencyId} className="overflow-hidden !p-0">
+          <Card key={c.competencyId} id={`criterion-card-${c.competencyId}`} className="criterion-card overflow-hidden !p-0">
             <button
               id={`criterion-head-${c.competencyId}`}
               className="disclosure-trigger flex w-full items-center justify-between gap-s4 p-s5 text-left"
@@ -242,6 +237,111 @@ export function StepAssessment({ ev, update, readOnly, next, goTo }: StepProps) 
               : []
         }
       />
+    </div>
+  );
+}
+
+/**
+ * Sticky bar on top of the assessment step: how many criteria are scored (progress bar) and which criterion
+ * is currently on screen. Each criterion chip jumps to its section.
+ */
+function AssessmentProgress({ criteria, onJump }: { criteria: CriterionAssessment[]; onJump: (code: string) => void }) {
+  const bar = useRef<HTMLDivElement>(null);
+  const [current, setCurrent] = useState<string | null>(null);
+  const [stuck, setStuck] = useState(false);
+  const scored = criteria.filter((c) => c.finalScore !== null).length;
+  const total = criteria.length;
+  const codes = criteria.map((c) => c.competencyId).join(',');
+
+  useEffect(() => {
+    let frame = 0;
+    const measure = () => {
+      frame = 0;
+      const el = bar.current;
+      if (!el) return;
+      const bottom = el.getBoundingClientRect().bottom;
+      setStuck(el.getBoundingClientRect().top <= 0.5 && window.scrollY > 0);
+      // the current section = the last criterion whose card starts above the bar's lower edge (+ a little slack)
+      let found: string | null = null;
+      for (const code of codes.split(',')) {
+        const card = document.getElementById(`criterion-card-${code}`);
+        if (card && card.getBoundingClientRect().top <= bottom + 24) found = code;
+      }
+      setCurrent(found);
+    };
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(measure);
+    };
+    measure();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, [codes]);
+
+  const idx = current ? criteria.findIndex((c) => c.competencyId === current) : -1;
+  const pct = total ? Math.round((scored / total) * 100) : 0;
+
+  return (
+    <div ref={bar} className="assessment-progress" data-stuck={stuck}>
+      <div className="flex items-center justify-between gap-s4">
+        <p className="min-w-0 truncate text-sm" aria-live="polite">
+          {idx >= 0 ? (
+            <>
+              <span className="hint mono">
+                Kryterium {idx + 1}/{total}
+              </span>{' '}
+              <strong>{COMPETENCY_BY_CODE[criteria[idx].competencyId].name}</strong>
+            </>
+          ) : (
+            <span className="hint">System wylicza sugestię ze wskaźników — ocenę cząstkową wybierasz Ty i nie musisz uzasadniać odstępstwa.</span>
+          )}
+        </p>
+        <p className="shrink-0 text-sm">
+          Ocenione kryteria: <strong className="mono">{scored}</strong>
+          <span className="hint mono"> / {total}</span>
+          {scored === total && <span className="ml-s2 font-semibold text-success">✓ gotowe</span>}
+        </p>
+      </div>
+      <div
+        className="assessment-progress-track mt-s2"
+        role="progressbar"
+        aria-label="Ocenione kryteria"
+        aria-valuemin={0}
+        aria-valuemax={total}
+        aria-valuenow={scored}
+        aria-valuetext={`${scored} z ${total} kryteriów ocenionych`}
+      >
+        <div className="assessment-progress-fill" style={{ width: `${pct}%` }} />
+      </div>
+      <ol className="mt-s2 flex flex-wrap gap-1">
+        {criteria.map((c, i) => {
+          const done = c.finalScore !== null;
+          const here = c.competencyId === current;
+          return (
+            <li key={c.competencyId}>
+              <button
+                className="assessment-chip"
+                data-done={done}
+                aria-current={here ? 'location' : undefined}
+                onClick={() => onJump(c.competencyId)}
+                title={COMPETENCY_BY_CODE[c.competencyId].name}
+              >
+                <span className="mono">{i + 1}.</span> {COMPETENCY_BY_CODE[c.competencyId].name}
+                <span className="sr-only">{done ? ` — ocena ${c.finalScore} pkt` : ' — bez oceny'}</span>
+                {done && (
+                  <span aria-hidden="true" className="ml-1">
+                    ✓
+                  </span>
+                )}
+              </button>
+            </li>
+          );
+        })}
+      </ol>
     </div>
   );
 }

@@ -76,7 +76,9 @@ export function LoginPage() {
       <ThemeSwitch className="absolute right-[32px] top-s5" />
       <section>
         <p className="badge badge-outline mb-s4">HackNation 2026 · Ministerstwo Cyfryzacji</p>
-        <h1>Kompas Kompetencji</h1>
+        <h1>
+          Kompas Kompetencji<span className="brand-dot" aria-hidden="true">.</span>
+        </h1>
         <p className="mt-s4 max-w-[440px] text-lg text-muted">Krok po kroku przez pierwszą ocenę i ocenę okresową w służbie cywilnej.</p>
         <p className="hint mt-s5">Prototyp · dane fikcyjne</p>
       </section>

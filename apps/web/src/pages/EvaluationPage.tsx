@@ -214,7 +214,7 @@ export function EvaluationPage() {
                 aria-disabled={locked || undefined}
                 aria-describedby={locked ? `step-lock-${s.id}` : undefined}
                 className={`step-tab w-full border-t-2 pt-s2 text-left text-sm ${
-                  s.id === current ? 'border-fg font-semibold' : s.state === 'done' ? 'border-success text-fg' : i < idx ? 'border-line-strong text-fg' : 'border-line text-muted'
+                  s.id === current ? 'border-accent font-semibold' : s.state === 'done' ? 'border-success text-fg' : i < idx ? 'border-line-strong text-fg' : 'border-line text-muted'
                 }`}
               >
                 <span className="flex items-center gap-1">

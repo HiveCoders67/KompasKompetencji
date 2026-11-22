@@ -165,7 +165,10 @@
   .nav-pill { display: flex; align-items: center; gap: 10px; padding: var(--sf-nav-padding); border-radius: var(--sf-nav-radius);
     font: 500 14px/1.4 var(--sf-font-body); color: var(--sf-text-primary); border: 1px solid transparent; }
   .nav-pill:hover { background: color-mix(in srgb, var(--sf-text-primary) 6%, transparent); }
-  .nav-pill[aria-current='page'] { border-color: var(--sf-border-strong); background: var(--sf-background); }
+  /* brand accent: the current page is outlined in accent with a faint accent tint */
+  .nav-pill[aria-current='page'] { border-color: var(--sf-accent); color: var(--sf-accent); font-weight: 600;
+    background: color-mix(in srgb, var(--sf-accent) 7%, var(--sf-background)); }
+  .nav-pill[aria-current='page']:hover { background: color-mix(in srgb, var(--sf-accent) 9%, var(--sf-background)); }
 
   .tab { padding: var(--sf-tab-padding); font: 600 14px/1.4 var(--sf-font-body); color: var(--sf-text-secondary);
     border-bottom: 2px solid transparent; cursor: pointer; }
@@ -262,6 +265,27 @@
   .save-dot.error { background: var(--sf-error); }
 
   .h-dense { font-family: var(--sf-font-heading); font-weight: 400; font-size: var(--sf-h2-size); line-height: var(--sf-h2-lh); letter-spacing: var(--sf-h2-ls); }
+  /* sticky progress of the assessment step: stays on top while scrolling through the criteria */
+  .assessment-progress { position: sticky; top: 0; z-index: 15; margin: 0 -14px; padding: var(--sf-space-3) 14px;
+    background: var(--sf-background); border-bottom: 1px solid transparent;
+    transition: border-color var(--sf-duration) var(--sf-ease), box-shadow var(--sf-duration) var(--sf-ease); }
+  .assessment-progress[data-stuck='true'] { border-bottom-color: var(--sf-border); box-shadow: var(--sf-shadow-md); }
+  .assessment-progress-track { height: 6px; border-radius: 999px; overflow: hidden; background: color-mix(in srgb, var(--sf-text-primary) 8%, transparent); }
+  .assessment-progress-fill { height: 100%; border-radius: 999px; background: var(--sf-accent); transition: width 400ms var(--sf-ease); }
+  .assessment-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--sf-border);
+    font: 500 12px/1.4 var(--sf-font-body); color: var(--sf-text-secondary); background: var(--sf-background);
+    transition: border-color var(--sf-duration) var(--sf-ease), color var(--sf-duration) var(--sf-ease), background var(--sf-duration) var(--sf-ease); }
+  .assessment-chip:hover { border-color: var(--sf-border-strong); color: var(--sf-text-primary); }
+  .assessment-chip[data-done='true'] { color: var(--sf-success); border-color: color-mix(in srgb, var(--sf-success) 40%, transparent); }
+  .assessment-chip[aria-current='location'] { color: var(--sf-accent); border-color: var(--sf-accent); font-weight: 600;
+    background: color-mix(in srgb, var(--sf-accent) 7%, var(--sf-background)); }
+  .assessment-chip:focus-visible { outline: 3px solid var(--sf-primary); outline-offset: 2px; }
+  /* criterion headings land below the sticky bar when jumped to */
+  .criterion-card { scroll-margin-top: 150px; }
+  /* brand accent: a short line under every page title */
+  .h-dense::after { content: ''; display: block; width: 32px; height: 3px; margin-top: 10px; border-radius: 2px; background: var(--sf-accent); }
+  /* brand accent: the full stop closing the app name */
+  .brand-dot { color: var(--sf-accent); }
 }
 
 @keyframes sf-fade { from { opacity: 0; } to { opacity: 1; } }
@@ -273,11 +297,18 @@
 @keyframes sf-zoom { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: none; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .sf-collapse, .disclosure-trigger, .disclosure-chevron, .show-more-chevron, .step-tab, .brand-link, .stat-tile { transition: none; }
+  .sf-collapse, .disclosure-trigger, .disclosure-chevron, .show-more-chevron, .step-tab, .brand-link, .stat-tile, .assessment-progress, .assessment-progress-fill, .assessment-chip { transition: none; }
   .save-dot.saving { animation: none; }
   .auto-height, .switch-thumb { transition: none; }
   .login-panel { animation: none; }
 }
 
+/* every enabled button shows the hand cursor (Tailwind's preflight resets it to the default arrow), incl. inline text buttons */
+@layer base {
+  button:not(:disabled):not([aria-disabled='true']), summary { cursor: pointer; }
+}
+
 html, body, #root { min-height: 100%; }
 body { min-width: 1200px; }
+/* brand accent: selected text gets a soft accent tint */
+::selection { background: color-mix(in srgb, var(--sf-accent) 22%, transparent); }

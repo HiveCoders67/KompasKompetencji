@@ -9,12 +9,27 @@ import { Alert } from './ui';
  * Drafts reach the form only via „Wstaw do formularza”.
  */
 
-export const EXAMPLE_QUESTIONS = [
-  'Pracownik ma średnią 5,8 z oceny okresowej, ale dostał 1 punkt za komunikację. Czy ocena jest pozytywna?',
-  'Nowy pracownik został zwolniony ze służby przygotowawczej przez Dyrektora Generalnego. Czy musi zdawać egzamin?',
-  'Pracownik na ocenie okresowej był na L4 przez 44 dni bez przerwy. Co z terminem oceny?',
-  'Ile dni ma pracownik na złożenie sprzeciwu od oceny okresowej i do kogo?',
-];
+/** Example questions per path — each set only asks about the path the user narrowed the assistant to. */
+export const EXAMPLE_QUESTIONS: Record<'A' | 'B' | 'ALL', string[]> = {
+  A: [
+    'Nowy pracownik został zwolniony ze służby przygotowawczej przez Dyrektora Generalnego. Czy musi zdawać egzamin?',
+    'Pracownik w pierwszej ocenie dostał jedną trójkę, trzy piątki i jedną siódemkę. Zdał egzamin i złożył sprawozdanie w terminie. Jaki będzie wynik?',
+    'W jakim terminie pracownik w służbie przygotowawczej składa sprawozdanie do pierwszej oceny?',
+    'W jakim terminie przełożony przeprowadza rozmowę wstępną z nowym pracownikiem?',
+  ],
+  B: [
+    'Pracownik ma średnią 5,8 z oceny okresowej, ale dostał 1 punkt za komunikację. Czy ocena jest pozytywna?',
+    'Pracownik na ocenie okresowej był na L4 przez 44 dni bez przerwy. Co z terminem oceny?',
+    'Ile dni ma pracownik na złożenie sprzeciwu od oceny okresowej i do kogo?',
+    'Kiedy stosuje się arkusz B, a kiedy arkusz C?',
+  ],
+  ALL: [
+    'Pracownik ma średnią 5,8 z oceny okresowej, ale dostał 1 punkt za komunikację. Czy ocena jest pozytywna?',
+    'Nowy pracownik został zwolniony ze służby przygotowawczej przez Dyrektora Generalnego. Czy musi zdawać egzamin?',
+    'Pracownik na ocenie okresowej był na L4 przez 44 dni bez przerwy. Co z terminem oceny?',
+    'Ile dni ma pracownik na złożenie sprzeciwu od oceny okresowej i do kogo?',
+  ],
+};
 
 /** The user's own message — the same bubble in both assistants. */
 function UserBubble({ children }: { children: string }) {
@@ -86,7 +101,7 @@ export function FormalChat({ evaluationId, step, path, examples }: { evaluationI
         {messages.length === 0 && examples && (
           <div className="flex flex-col gap-2">
             <p className="label">Przykładowe pytania</p>
-            {EXAMPLE_QUESTIONS.map((x) => (
+            {EXAMPLE_QUESTIONS[path ?? 'ALL'].map((x) => (
               <button key={x} className="radio-card text-left" onClick={() => ask(x)}>
                 {x}
               </button>

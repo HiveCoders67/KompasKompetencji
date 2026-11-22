@@ -39,7 +39,7 @@ Use colours through CSS variables (`var(--sf-<role>)`), never hard-coded hex val
 | primary | `--sf-primary` | `#111111` | `#f4f0f0` | Main brand colour: primary buttons, active states, key links |
 | onPrimary | `--sf-on-primary` | `#ffffff` | `#140f0f` | Text and icons placed on `primary` |
 | secondary | `--sf-secondary` | `#5f5f63` | `#8a8a8f` | Supporting brand colour: secondary actions, tags, illustrations |
-| accent | `--sf-accent` | `#2f6bff` | `#5585f7` | Highlights used sparingly: badges, emphasis, decorative details |
+| accent | `--sf-accent` | `#2d5ff7` | `#5585f7` | Highlights used sparingly: badges, emphasis, decorative details (brand line on top of every page, current-page bar in the sidebar) |
 | background | `--sf-background` | `#ffffff` | `#140f0f` | Page background |
 | surface | `--sf-surface` | `#fafafa` | `#1f1919` | Cards, inputs, modals, navigation bars |
 | textPrimary | `--sf-text-primary` | `#0a0a0a` | `#f4f0f0` | Headings and body text |
@@ -57,6 +57,7 @@ Use colours through CSS variables (`var(--sf-<role>)`), never hard-coded hex val
 - Muted text on background: 5.30:1 (AA)
 - Text on surface: 18.97:1 (AAA)
 - Text on primary: 18.88:1 (AAA)
+- `accent` `#2d5ff7`: 5.1:1 on background, 4.9:1 on surface (AA).
 - Text placed on `primary` uses `--sf-on-primary` (`#ffffff` light / `#140f0f` dark).
 
 **Contrast (dark theme, on `#140f0f`):**
