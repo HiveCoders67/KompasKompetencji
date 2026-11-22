@@ -1,0 +1,49 @@
+name: Deploy to Firebase
+
+# Every push to main: typecheck + tests, then deploy Firestore rules/indexes, Cloud Functions and Hosting.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# never run two deploys at once; a newer push waits for the running one
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      # service account key (JSON) from the FIREBASE_SERVICE_ACCOUNT secret → GOOGLE_APPLICATION_CREDENTIALS
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      # web config comes from .env.production, function params from functions/.env.kompaskompetencji,
+      # the Gemini key from Secret Manager (GEMINI_API_KEY) — nothing secret is stored in the repo
+      - run: npm run deploy -- --project kompaskompetencji --non-interactive --force
