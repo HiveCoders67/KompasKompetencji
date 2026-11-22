@@ -20,7 +20,7 @@ import {
   type Osp,
   type ParsedOsp,
 } from '@kompas/domain';
-import { Alert, Card } from '../../components/ui';
+import { Alert, BlockedReasons, Card, RequiredMark } from '../../components/ui';
 import { callableError, saveEmployeeOsp, suggestCriteriaFn } from '../../data/repo';
 import type { StepProps } from './types';
 
@@ -145,12 +145,17 @@ export function StepOsp({ ev, employee, update, setEmployee, readOnly, next, flu
         {needsManagementConfirmation(osp) ? (
           <div className="flex flex-col gap-s3">
             <Alert tone="warning">{FORM_B_WARNING}</Alert>
+            <p className="label !mb-0" id="management-label">
+              Charakter pracy na stanowisku
+              <RequiredMark />
+            </p>
             <RadioGroup.Root
               className="grid grid-cols-2 gap-s2"
               value={osp.managementConfirmed === null ? '' : String(osp.managementConfirmed)}
               onValueChange={(v) => confirmManagement(v === 'true')}
               disabled={readOnly || saving}
-              aria-label="Charakter pracy na stanowisku"
+              aria-labelledby="management-label"
+              aria-required="true"
             >
               <RadioGroup.Item value="true" className="radio-card">
                 <strong>Bezpośrednio kieruje pracownikami</strong>
@@ -257,10 +262,14 @@ export function StepOsp({ ev, employee, update, setEmployee, readOnly, next, flu
       </Card>
 
       <div className="flex justify-end">
-        <button className="btn" onClick={next} disabled={!formResolved}>
+        <button className="btn" onClick={next} disabled={!formResolved} aria-describedby={!formResolved ? 'osp-blockers' : undefined}>
           Dalej: rozpocznij ocenę
         </button>
       </div>
+      <BlockedReasons
+        id="osp-blockers"
+        reasons={formResolved ? [] : ['Wskaż w sekcji „Dobór arkusza”, czy praca na stanowisku polega na bezpośrednim kierowaniu pracownikami.']}
+      />
     </div>
   );
 }

@@ -33,11 +33,24 @@ type Tone = 'info' | 'success' | 'warning' | 'error';
 export function Alert({ tone = 'info', title, children }: { tone?: Tone; title?: string; children?: ReactNode }) {
   return (
     <div className={`alert ${tone === 'info' ? '' : `alert-${tone}`}`} role={tone === 'error' || tone === 'warning' ? 'alert' : 'status'}>
-      <div>
+      <div className="min-w-0 flex-1">
         {title && <p className="font-semibold">{title}</p>}
         {children && <div className={title ? 'mt-1' : ''}>{children}</div>}
       </div>
     </div>
+  );
+}
+
+/** Red asterisk for a required field (+ text for screen readers). Use it for every field the validation requires. */
+export function RequiredMark() {
+  return (
+    <>
+      <span className="text-error" aria-hidden="true">
+        {' '}
+        *
+      </span>
+      <span className="sr-only"> (pole obowiązkowe)</span>
+    </>
   );
 }
 
@@ -48,8 +61,11 @@ export function Field({
   htmlFor,
   issues,
   issuesId,
+  required,
 }: {
   label: string;
+  /** Marks the field as required (red asterisk). */
+  required?: boolean;
   hint?: ReactNode;
   children: ReactNode;
   htmlFor?: string;
@@ -62,6 +78,7 @@ export function Field({
     <div>
       <label className="label" htmlFor={htmlFor}>
         {label}
+        {required && <RequiredMark />}
       </label>
       {children}
       {issues && issues.length > 0 && <FieldPopup id={issuesId} issues={issues} />}
@@ -180,4 +197,22 @@ export const Spinner = ({ label = 'Wczytywanie…' }: { label?: string }) => (
 
 export function Empty({ children }: { children: ReactNode }) {
   return <p className="hint rounded-lg border border-dashed border-line-strong p-s5 text-center">{children}</p>;
+}
+
+/** Why the primary action above is unavailable — shown instead of a silently greyed-out button. */
+export function BlockedReasons({ id, reasons }: { id: string; reasons: ReactNode[] }) {
+  if (!reasons.length) return null;
+  return (
+    <div id={id} className="hint -mt-s3 text-right text-sm">
+      {reasons.length === 1 ? (
+        <p>{reasons[0]}</p>
+      ) : (
+        <ul className="flex flex-col gap-1">
+          {reasons.map((r, i) => (
+            <li key={i}>{r}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }

@@ -16,13 +16,15 @@ import {
   type IndicatorAssessment,
   type Score,
 } from '@kompas/domain';
-import { Alert, Card } from '../../components/ui';
+import { Alert, BlockedReasons, Card, RequiredMark } from '../../components/ui';
+import { LockedStep } from './LockedStep';
+import { stepLock, unfinishedCriteria } from './progress';
 import type { StepProps } from './types';
 
 /** Radio value for „brak podstaw do oceny” (stored as level = null). */
 const NO_BASIS = 'none';
 
-export function StepAssessment({ ev, update, readOnly, next }: StepProps) {
+export function StepAssessment({ ev, update, readOnly, next, goTo }: StepProps) {
   // sections open independently — closing one automatically would shift the one being opened under the cursor
   const [open, setOpen] = useState<ReadonlySet<string>>(() => {
     const first = ev.criteriaAssessments.find((c) => c.finalScore === null)?.competencyId;
@@ -34,7 +36,14 @@ export function StepAssessment({ ev, update, readOnly, next }: StepProps) {
       if (!next.delete(code)) next.add(code);
       return next;
     });
-  const blocked = ev.status === 'DRAFT' || (ev.type === 'FIRST_EVALUATION' && ev.status === 'INITIAL_TALK_DONE');
+  const lock = stepLock(ev, 'assessment');
+  const blocked = lock !== null;
+  const unfinished = unfinishedCriteria(ev);
+  /** Opens a criterion and brings it into view (from the „what is missing” hint under „Dalej”). */
+  const showCriterion = (code: string) => {
+    setOpen((prev) => new Set(prev).add(code));
+    requestAnimationFrame(() => document.getElementById(`criterion-head-${code}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  };
 
   const patch = (code: string, fn: (c: CriterionAssessment) => CriterionAssessment) =>
     update((e: Evaluation) => ({ ...e, criteriaAssessments: e.criteriaAssessments.map((c) => (c.competencyId === code ? fn(c) : c)) }));
@@ -45,11 +54,7 @@ export function StepAssessment({ ev, update, readOnly, next }: StepProps) {
 
   return (
     <div className="flex flex-col gap-s5">
-      {blocked && (
-        <Alert tone="warning">
-          {ev.type === 'FIRST_EVALUATION' ? 'Ocenę elementów rozpoczyna się po złożeniu sprawozdania (lub upływie terminu).' : 'Najpierw potwierdź przeprowadzenie rozmowy rozpoczynającej.'}
-        </Alert>
-      )}
+      {lock && <LockedStep lock={lock} goTo={goTo} ev={ev} />}
       <Alert title="Jak oceniać wskaźniki (model kompetencji MC)">
         <ul className="list-disc pl-5">
           {MODEL_GUIDANCE.map((g) => (
@@ -70,6 +75,7 @@ export function StepAssessment({ ev, update, readOnly, next }: StepProps) {
         return (
           <Card key={c.competencyId} className="overflow-hidden !p-0">
             <button
+              id={`criterion-head-${c.competencyId}`}
               className="disclosure-trigger flex w-full items-center justify-between gap-s4 p-s5 text-left"
               onClick={() => toggle(c.competencyId)}
               aria-expanded={expanded}
@@ -168,7 +174,10 @@ export function StepAssessment({ ev, update, readOnly, next }: StepProps) {
                   <div className="rounded-lg border border-line-strong p-s4">
                     <div className="flex items-center justify-between gap-s4">
                       <div>
-                        <p className="label !mb-1">Ocena cząstkowa — decyzja przełożonego</p>
+                        <p className="label !mb-1">
+                        Ocena cząstkowa — decyzja przełożonego
+                        <RequiredMark />
+                      </p>
                         <SuggestionText c={c} long />
                       </div>
                       <RadioGroup.Root
@@ -201,10 +210,38 @@ export function StepAssessment({ ev, update, readOnly, next }: StepProps) {
       })}
 
       <div className="flex justify-end">
-        <button className="btn" onClick={next} disabled={blocked}>
+        <button
+          className="btn"
+          onClick={next}
+          disabled={blocked || unfinished.length > 0}
+          aria-describedby={blocked || unfinished.length ? 'assessment-blockers' : undefined}
+        >
           Dalej: rozmowa oceniająca i wynik
         </button>
       </div>
+      <BlockedReasons
+        id="assessment-blockers"
+        reasons={
+          lock
+            ? [lock.reason]
+            : unfinished.length
+              ? [
+                  <>
+                    Wybierz ocenę cząstkową dla:{' '}
+                    {unfinished.map((code, i) => (
+                      <span key={code}>
+                        {i > 0 && ', '}
+                        <button className="underline" onClick={() => showCriterion(code)}>
+                          {COMPETENCY_BY_CODE[code as keyof typeof COMPETENCY_BY_CODE].name}
+                        </button>
+                      </span>
+                    ))}
+                    .
+                  </>,
+                ]
+              : []
+        }
+      />
     </div>
   );
 }

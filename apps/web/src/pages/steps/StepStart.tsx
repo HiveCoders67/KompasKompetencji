@@ -102,6 +102,7 @@ export function StepStart({ ev, employee, update, readOnly, next }: StepProps) {
           <Field
             label={isA ? 'Data rozmowy wstępnej' : 'Data rozmowy rozpoczynającej'}
             htmlFor="field-initialTalkDate"
+            required
             issues={visible('initialTalkDate')}
             issuesId={popupId('initialTalkDate')}
             hint={
@@ -146,6 +147,7 @@ export function StepStart({ ev, employee, update, readOnly, next }: StepProps) {
               <Field
                 label="Termin złożenia sprawozdania (od – do)"
                 htmlFor="field-reportDue"
+                required
                 issues={visible('reportDue')}
                 issuesId={popupId('reportDue')}
                 hint="Sprawozdanie obejmuje co najmniej 7 miesięcy pracy (§ 4 i § 6 rozp. z 2015 r.)."
@@ -171,6 +173,7 @@ export function StepStart({ ev, employee, update, readOnly, next }: StepProps) {
               <Field
                 label="Okres dokonania pierwszej oceny (od – do)"
                 htmlFor="field-evaluationWindow"
+                required
                 issues={visible('evaluationWindow')}
                 issuesId={popupId('evaluationWindow')}
                 hint="Po upływie 8 miesięcy, nie później niż na miesiąc przed końcem umowy (art. 38 ust. 1 ustawy)."

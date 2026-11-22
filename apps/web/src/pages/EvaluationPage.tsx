@@ -13,7 +13,7 @@ import {
 } from '@kompas/domain';
 import { useSession } from '../app/session';
 import { AssistantPanel } from '../components/AssistantPanel';
-import { Alert, Spinner, StatusBadge } from '../components/ui';
+import { Alert, Hint, Spinner, StatusBadge } from '../components/ui';
 import { getEmployee, saveEvaluation, watchEvaluation } from '../data/repo';
 import { StepAssessment } from './steps/StepAssessment';
 import { StepComplete } from './steps/StepComplete';
@@ -21,6 +21,7 @@ import { StepFinal } from './steps/StepFinal';
 import { StepOsp } from './steps/StepOsp';
 import { StepReport } from './steps/StepReport';
 import { StepStart } from './steps/StepStart';
+import { stepProgress, type StepState } from './steps/progress';
 import type { StepProps } from './steps/types';
 
 const AUTOSAVE_MS = 2000;
@@ -49,6 +50,7 @@ export function EvaluationPage() {
   const [error, setError] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [assistantOpen, setAssistantOpen] = useState(false);
   const saved = useRef<Evaluation | null>(null);
   const draftRef = useRef<Evaluation | null>(null);
@@ -84,6 +86,7 @@ export function EvaluationPage() {
   const flush = useCallback(async () => {
     const d = draftRef.current;
     if (!d || !saved.current || readOnly) return;
+    setSaving(true);
     try {
       if (await saveEvaluation(saved.current, d)) {
         saved.current = d;
@@ -93,8 +96,24 @@ export function EvaluationPage() {
     } catch (e) {
       setSaveError((e as Error).message.includes('permission') ? 'Zapis odrzucony przez reguły bezpieczeństwa.' : (e as Error).message);
       throw e;
+    } finally {
+      setSaving(false);
     }
   }, [readOnly]);
+
+  const flushRef = useRef(flush);
+  flushRef.current = flush;
+  useEffect(() => () => void flushRef.current().catch(() => undefined), []);
+
+  const dirty = !!draft && !!saved.current && !readOnly && editable(draft) !== editable(saved.current);
+
+  // closing the tab with unsaved edits (autosave waits AUTOSAVE_MS) → the browser asks first
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
 
   // debounced autosave
   useEffect(() => {
@@ -115,6 +134,7 @@ export function EvaluationPage() {
   if (!draft || !employee) return <Spinner />;
 
   const steps = stepsFor(draft);
+  const progress = stepProgress(draft, employee);
   const current = (steps.find((s) => s.id === draft.currentStep) ?? steps[0]).id;
   const idx = steps.findIndex((s) => s.id === current);
   const goTo = (step: StepId) => {
@@ -153,16 +173,16 @@ export function EvaluationPage() {
           <h2 className="h-dense">{draft.employeeName}</h2>
           <div className="mt-s2 flex items-center gap-s3">
             <StatusBadge status={draft.status} type={draft.type} />
-            <span className="hint" aria-live="polite">
-              {readOnly
-                ? isLocked(draft)
-                  ? 'Ocena zatwierdzona — tylko do odczytu'
-                  : 'Podgląd (tylko do odczytu)'
-                : savedAt
-                  ? `Zapisano ${savedAt.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}`
-                  : 'Autozapis włączony'}
-            </span>
-            {saveError && <span className="text-sm text-error">{saveError}</span>}
+            {readOnly ? (
+              <span className="hint">{isLocked(draft) ? 'Ocena zatwierdzona — tylko do odczytu' : 'Podgląd (tylko do odczytu)'}</span>
+            ) : (
+              <SaveStatus
+                state={saveError ? 'error' : saving || dirty ? 'saving' : 'saved'}
+                savedAt={savedAt}
+                error={saveError}
+                retry={() => flush().catch(() => undefined)}
+              />
+            )}
           </div>
         </div>
         <div className="flex shrink-0 gap-s2">
@@ -179,20 +199,40 @@ export function EvaluationPage() {
 
       <nav aria-label="Kroki oceny" className="mb-s6">
         <ol className="flex gap-1">
-          {steps.map((s, i) => (
-            <li key={s.id} className="flex-1">
+          {progress.map((s, i) => {
+            // a locked step cannot be entered from the stepper; the tooltip says what unlocks it
+            const locked = s.state === 'locked' && s.id !== current;
+            const tab = (
               <button
-                onClick={() => goTo(s.id)}
+                onClick={() => !locked && goTo(s.id)}
                 aria-current={s.id === current ? 'step' : undefined}
-                className={`w-full border-t-2 pt-s2 text-left text-sm transition-colors ${
-                  s.id === current ? 'border-fg font-semibold' : i < idx ? 'border-line-strong text-fg' : 'border-line text-muted'
+                aria-disabled={locked || undefined}
+                aria-describedby={locked ? `step-lock-${s.id}` : undefined}
+                className={`step-tab w-full border-t-2 pt-s2 text-left text-sm ${
+                  s.id === current ? 'border-fg font-semibold' : s.state === 'done' ? 'border-success text-fg' : i < idx ? 'border-line-strong text-fg' : 'border-line text-muted'
                 }`}
               >
-                <span className="mono mr-1">{i + 1}.</span>
-                {s.label}
+                <span className="flex items-center gap-1">
+                  <span className="mono">{i + 1}.</span>
+                  {s.label}
+                  <StepIcon state={s.state} />
+                </span>
+                {s.note && (
+                  <span className={`block text-xs font-normal ${s.state === 'done' ? 'text-success' : 'text-muted'}`}>{s.note}</span>
+                )}
+                {locked && (
+                  <span id={`step-lock-${s.id}`} className="sr-only">
+                    {s.lock?.reason}
+                  </span>
+                )}
               </button>
-            </li>
-          ))}
+            );
+            return (
+              <li key={s.id} className="flex-1">
+                {locked && s.lock ? <Hint text={s.lock.reason}>{tab}</Hint> : tab}
+              </li>
+            );
+          })}
         </ol>
       </nav>
 
@@ -200,5 +240,35 @@ export function EvaluationPage() {
 
       <AssistantPanel open={assistantOpen} onClose={() => setAssistantOpen(false)} ev={draft} step={current} update={update} readOnly={readOnly} />
     </div>
+  );
+}
+
+function StepIcon({ state }: { state: StepState }) {
+  if (state === 'todo') return null;
+  return (
+    <svg className={`shrink-0 ${state === 'done' ? 'text-success' : 'text-muted'}`} width="14" height="14" viewBox="0 0 16 16" fill="none"
+      stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {state === 'done' ? <path d="M3.5 8.5l3 3 6-7" /> : <><rect x="3.5" y="7" width="9" height="6.5" rx="1.5" /><path d="M5.5 7V5a2.5 2.5 0 015 0v2" /></>}
+    </svg>
+  );
+}
+
+/** Autosave state next to the status badge: saving → saved at HH:MM, or the error with a retry. */
+function SaveStatus({ state, savedAt, error, retry }: { state: 'saving' | 'saved' | 'error'; savedAt: Date | null; error: string | null; retry: () => void }) {
+  const time = savedAt?.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
+  return (
+    <span className="flex items-center gap-s2 text-sm" role="status" aria-live="polite">
+      <span className={`save-dot ${state}`} aria-hidden="true" />
+      {state === 'error' ? (
+        <>
+          <span className="text-error">Nie zapisano zmian: {error}</span>
+          <button className="btn btn-ghost btn-sm" onClick={retry}>
+            Spróbuj ponownie
+          </button>
+        </>
+      ) : (
+        <span className="text-muted">{state === 'saving' ? 'Zapisywanie…' : time ? `Zapisano ${time}` : 'Wszystkie zmiany zapisane'}</span>
+      )}
+    </span>
   );
 }

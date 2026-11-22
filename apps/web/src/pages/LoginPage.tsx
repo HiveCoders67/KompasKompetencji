@@ -93,10 +93,10 @@ export function LoginPage() {
         <details className="border-t border-line pt-s4">
           <summary className="cursor-pointer text-sm font-semibold">Logowanie e-mailem i hasłem</summary>
           <form onSubmit={submit} className="mt-s4 flex flex-col gap-s3">
-            <Field label="E-mail" htmlFor="email">
+            <Field label="E-mail" htmlFor="email" required>
               <input id="email" className="input" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </Field>
-            <Field label="Hasło" htmlFor="password">
+            <Field label="Hasło" htmlFor="password" required>
               <input id="password" className="input" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
             </Field>
             <button className="btn btn-secondary self-start" type="submit" disabled={busy}>

@@ -203,7 +203,7 @@ export function HrPanel() {
       </Card>
 
       <Modal open={!!target} onOpenChange={(o) => !o && setTarget(null)} title="Wyślij przypomnienie" description={target ? `Do: ${target.supervisorName} (licznik w aplikacji)` : undefined}>
-        <Field label="Treść" htmlFor="reminder-msg">
+        <Field label="Treść" htmlFor="reminder-msg" required>
           <textarea id="reminder-msg" className="textarea" rows={4} value={message} onChange={(e) => setMessage(e.target.value)} />
         </Field>
         {error && <div className="mt-s3"><Alert tone="error">{error}</Alert></div>}

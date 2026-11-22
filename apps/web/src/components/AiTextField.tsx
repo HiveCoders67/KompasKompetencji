@@ -1,3 +1,4 @@
+import { RequiredMark } from './ui';
 /** Text field of the form; shows the AI-draft label until the first manual edit (schema: texts.*AiDraft). */
 export function AiTextField({
   id,
@@ -23,7 +24,7 @@ export function AiTextField({
       <div className="mb-1 flex items-center justify-between gap-s3">
         <label htmlFor={id} className="label !mb-0">
           {label}
-          {required && <span className="text-error"> *</span>}
+          {required && <RequiredMark />}
         </label>
         {aiDraft && <span className="badge badge-warning">Szkic wygenerowany przez AI — wymaga weryfikacji</span>}
       </div>
