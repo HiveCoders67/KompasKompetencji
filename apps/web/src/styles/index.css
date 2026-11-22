@@ -282,6 +282,22 @@
   .assessment-chip:focus-visible { outline: 3px solid var(--sf-primary); outline-offset: 2px; }
   /* criterion headings land below the sticky bar when jumped to */
   .criterion-card { scroll-margin-top: 150px; }
+  /* floating AI assistant (evaluation view): a pill button in the bottom-right corner + a chat window above it, over the content */
+  .assistant-fab { position: fixed; right: 24px; bottom: 24px; z-index: 30; display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 18px; border-radius: 999px; border: 1px solid var(--sf-primary); background: var(--sf-primary); color: var(--sf-on-primary);
+    font: 600 15px/1 var(--sf-font-body); box-shadow: var(--sf-shadow-lg);
+    transition: transform var(--sf-duration) var(--sf-ease), background var(--sf-duration) var(--sf-ease), color var(--sf-duration) var(--sf-ease); }
+  .assistant-fab:hover { transform: translateY(-1px); }
+  .assistant-fab:focus-visible { outline: 3px solid var(--sf-accent); outline-offset: 3px; }
+  .assistant-fab[data-open='true'] { background: var(--sf-surface); color: var(--sf-text-primary); border-color: var(--sf-border-strong); }
+  .assistant-fab-spark { color: var(--sf-accent); }
+  .assistant-window { position: fixed; right: 24px; bottom: 88px; z-index: 30; display: flex; flex-direction: column;
+    width: 420px; height: min(640px, calc(100vh - 120px)); padding: var(--sf-space-4);
+    background: var(--sf-surface); border: 1px solid var(--sf-border); border-radius: var(--sf-radius-lg); box-shadow: var(--sf-shadow-lg);
+    transform-origin: bottom right; transition: opacity var(--sf-duration) var(--sf-ease), transform var(--sf-duration) var(--sf-ease), visibility 0s linear 0s; }
+  .assistant-window[data-open='false'] { opacity: 0; transform: translateY(12px) scale(0.97); visibility: hidden; pointer-events: none;
+    transition: opacity var(--sf-duration) var(--sf-ease), transform var(--sf-duration) var(--sf-ease), visibility 0s linear var(--sf-duration); }
+  .assistant-window:focus-visible { outline: 3px solid var(--sf-primary); outline-offset: 2px; }
   /* brand accent: a short line under every page title */
   .h-dense::after { content: ''; display: block; width: 32px; height: 3px; margin-top: 10px; border-radius: 2px; background: var(--sf-accent); }
   /* brand accent: the full stop closing the app name */
@@ -297,7 +313,7 @@
 @keyframes sf-zoom { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: none; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .sf-collapse, .disclosure-trigger, .disclosure-chevron, .show-more-chevron, .step-tab, .brand-link, .stat-tile, .assessment-progress, .assessment-progress-fill, .assessment-chip { transition: none; }
+  .sf-collapse, .disclosure-trigger, .disclosure-chevron, .show-more-chevron, .step-tab, .brand-link, .stat-tile, .assessment-progress, .assessment-progress-fill, .assessment-chip, .assistant-fab, .assistant-window { transition: none; }
   .save-dot.saving { animation: none; }
   .auto-height, .switch-thumb { transition: none; }
   .login-panel { animation: none; }

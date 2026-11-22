@@ -264,46 +264,97 @@ function InterviewChat({ ev, step, update, readOnly }: { ev: Evaluation; step: S
   );
 }
 
+/**
+ * Floating AI assistant of the evaluation view: a button pinned to the bottom-right corner opens a chat window above it.
+ * The window floats over the page (never squeezes the content) and stays mounted while hidden, so the conversation survives closing.
+ */
 export function AssistantPanel({
   open,
-  onClose,
+  onOpenChange,
   ev,
   step,
   update,
   readOnly,
 }: {
   open: boolean;
-  onClose: () => void;
+  onOpenChange: (open: boolean) => void;
   ev: Evaluation;
   step: StepId;
   update: (fn: (e: Evaluation) => Evaluation) => void;
   readOnly: boolean;
 }) {
-  if (!open) return null;
+  const panel = useRef<HTMLElement>(null);
+  const fab = useRef<HTMLButtonElement>(null);
+  const wasOpen = useRef(open);
+  useEffect(() => {
+    // focus moves into the window on open and back to the button on close
+    if (open && !wasOpen.current) requestAnimationFrame(() => panel.current?.focus());
+    if (!open && wasOpen.current && panel.current?.contains(document.activeElement)) fab.current?.focus();
+    wasOpen.current = open;
+  }, [open]);
+
   return (
-    <aside aria-label="Asystent AI" className="fixed right-0 top-0 z-20 flex h-screen w-[400px] flex-col border-l border-line bg-surface p-s4 shadow-lg">
-      <div className="mb-s3 flex items-center justify-between">
-        <h5>Asystent AI</h5>
-        <button className="btn btn-ghost btn-sm" onClick={onClose}>
-          Zamknij
-        </button>
-      </div>
-      <Tabs.Root defaultValue={step === 'final' || step === 'start' ? 'interview' : 'formal'} className="flex min-h-0 flex-1 flex-col">
-        <Tabs.List className="mb-s3 flex border-b border-line" aria-label="Rodzaj asystenta">
-          <Tabs.Trigger value="formal" className="tab">
-            Formalny (przepisy)
-          </Tabs.Trigger>
-          <Tabs.Trigger value="interview" className="tab">
-            Rozmowa
-          </Tabs.Trigger>
-        </Tabs.List>
-        <Tabs.Content value="formal" className="min-h-0 flex-1 data-[state=inactive]:hidden" forceMount>
-          <FormalChat evaluationId={ev.id} step={step} />
-        </Tabs.Content>
-        <Tabs.Content value="interview" className="min-h-0 flex-1 data-[state=inactive]:hidden" forceMount>
-          <InterviewChat ev={ev} step={step} update={update} readOnly={readOnly} />
-        </Tabs.Content>
-      </Tabs.Root>
-    </aside>
+    <>
+      <aside
+        ref={panel}
+        id="assistant-window"
+        aria-label="Asystent AI"
+        tabIndex={-1}
+        className="assistant-window"
+        data-open={open}
+        aria-hidden={!open}
+        inert={!open}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            e.stopPropagation();
+            onOpenChange(false);
+          }
+        }}
+      >
+        <div className="mb-s3 flex items-center justify-between gap-s3">
+          <h5>Asystent AI</h5>
+          <button className="btn btn-ghost btn-sm" onClick={() => onOpenChange(false)} aria-label="Zwiń asystenta AI">
+            Zwiń
+          </button>
+        </div>
+        <Tabs.Root defaultValue={step === 'final' || step === 'start' ? 'interview' : 'formal'} className="flex min-h-0 flex-1 flex-col">
+          <Tabs.List className="mb-s3 flex border-b border-line" aria-label="Rodzaj asystenta">
+            <Tabs.Trigger value="formal" className="tab">
+              Formalny (przepisy)
+            </Tabs.Trigger>
+            <Tabs.Trigger value="interview" className="tab">
+              Rozmowa
+            </Tabs.Trigger>
+          </Tabs.List>
+          <Tabs.Content value="formal" className="min-h-0 flex-1 data-[state=inactive]:hidden" forceMount>
+            <FormalChat evaluationId={ev.id} step={step} />
+          </Tabs.Content>
+          <Tabs.Content value="interview" className="min-h-0 flex-1 data-[state=inactive]:hidden" forceMount>
+            <InterviewChat ev={ev} step={step} update={update} readOnly={readOnly} />
+          </Tabs.Content>
+        </Tabs.Root>
+      </aside>
+      <button
+        ref={fab}
+        type="button"
+        className="assistant-fab"
+        data-open={open}
+        aria-expanded={open}
+        aria-controls="assistant-window"
+        onClick={() => onOpenChange(!open)}
+      >
+        {open ? (
+          <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden="true">
+            <path d="M4 4l8 8M12 4l-8 8" />
+          </svg>
+        ) : (
+          <svg className="assistant-fab-spark" width="18" height="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path d="M8 0.8l1.7 4.6 4.6 1.7-4.6 1.7L8 13.4 6.3 8.8 1.7 7.1l4.6-1.7z" />
+            <path d="M13.2 10.6l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z" />
+          </svg>
+        )}
+        {open ? 'Zamknij asystenta' : 'Asystent AI'}
+      </button>
+    </>
   );
 }

@@ -168,7 +168,7 @@ export function EvaluationPage() {
   };
 
   return (
-    <div className={assistantOpen ? 'pr-[420px]' : ''}>
+    <div className="pb-[88px]">
       <header className="mb-s5 flex items-start justify-between gap-s4">
         <div>
           <Link to={back.to} onClick={leave} className="back-link mb-s2">
@@ -194,11 +194,6 @@ export function EvaluationPage() {
               />
             )}
           </div>
-        </div>
-        <div className="flex shrink-0 gap-s2">
-          <button className="btn btn-secondary" onClick={() => setAssistantOpen((o) => !o)} aria-expanded={assistantOpen}>
-            {assistantOpen ? 'Ukryj asystenta' : 'Asystent AI'}
-          </button>
         </div>
       </header>
 
@@ -243,7 +238,7 @@ export function EvaluationPage() {
 
       <Step {...props} />
 
-      <AssistantPanel open={assistantOpen} onClose={() => setAssistantOpen(false)} ev={draft} step={current} update={update} readOnly={readOnly} />
+      <AssistantPanel open={assistantOpen} onOpenChange={setAssistantOpen} ev={draft} step={current} update={update} readOnly={readOnly} />
     </div>
   );
 }
