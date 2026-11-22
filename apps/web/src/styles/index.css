@@ -224,6 +224,13 @@
   .brand-link:hover { opacity: 0.75; }
   .brand-link:focus-visible { outline: 3px solid var(--sf-primary); outline-offset: 2px; }
 
+  /* Login card: panels swap with a short slide + fade, the card height follows smoothly.
+     The inner padding / outer negative margin keep focus rings from being clipped. */
+  .auto-height { overflow: hidden; margin: -6px; transition: height calc(var(--sf-duration) * 1.2) var(--sf-ease); }
+  .auto-height-inner { padding: 6px; }
+  .login-panel { animation: sf-panel-forward calc(var(--sf-duration) * 1.2) var(--sf-ease); }
+  .login-panel[data-dir='back'] { animation-name: sf-panel-back; }
+
   /* Evaluation stepper tab */
   .step-tab { cursor: pointer; transition: color var(--sf-duration) var(--sf-ease), border-color var(--sf-duration) var(--sf-ease); }
   .step-tab:hover:not([aria-disabled='true']) { color: var(--sf-text-primary); }
@@ -240,6 +247,8 @@
 
 @keyframes sf-fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes sf-pulse { 50% { opacity: 0.35; } }
+@keyframes sf-panel-forward { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
+@keyframes sf-panel-back { from { opacity: 0; transform: translateX(-16px); } to { opacity: 1; transform: none; } }
 @keyframes sf-slide-left { from { opacity: 0; transform: translateX(var(--sf-reveal-distance)); } to { opacity: 1; transform: none; } }
 @keyframes sf-pop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 @keyframes sf-zoom { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: none; } }
@@ -247,6 +256,8 @@
 @media (prefers-reduced-motion: reduce) {
   .sf-collapse, .disclosure-trigger, .disclosure-chevron, .step-tab, .brand-link { transition: none; }
   .save-dot.saving { animation: none; }
+  .auto-height { transition: none; }
+  .login-panel { animation: none; }
 }
 
 html, body, #root { min-height: 100%; }
