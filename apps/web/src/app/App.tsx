@@ -14,15 +14,17 @@ import { RemindersPage } from '../pages/RemindersPage';
 import { SupervisorDashboard } from '../pages/SupervisorDashboard';
 import { homePath, SessionProvider, useSession } from './session';
 import { ThemeSwitch } from '../components/ThemeSwitch';
+import { TourProvider, useTour } from '../components/Tour';
 
 function Sidebar() {
   const { user, has, signOut } = useSession();
+  const tour = useTour();
   const [reminders, setReminders] = useState<Reminder[]>([]);
   useEffect(() => (user && has('SUPERVISOR') ? watchMyReminders(user, setReminders) : undefined), [user?.uid]); // eslint-disable-line react-hooks/exhaustive-deps
   const unread = reminders.filter((r) => r.status === 'SENT').length;
   if (!user) return null;
-  const item = (to: string, label: string, extra?: ReactNode) => (
-    <NavLink to={to} className="nav-pill" end={to === '/oceny'}>
+  const item = (to: string, label: string, extra?: ReactNode, tourId?: string) => (
+    <NavLink to={to} className="nav-pill" end={to === '/oceny'} data-tour={tourId}>
       <span className="flex-1">{label}</span>
       {extra}
     </NavLink>
@@ -46,10 +48,11 @@ function Sidebar() {
                 {unread}
               </span>
             ),
+            'nav-reminders',
           )}
         {has('DEPARTMENT_HEAD') && item('/zatwierdzenia', 'Zatwierdzenia')}
         {has('HR_ADMIN') && item('/hr', 'Panel HR')}
-        {!has('HR_ADMIN') && item('/asystent', 'Asystent formalny')}
+        {!has('HR_ADMIN') && item('/asystent', 'Asystent formalny', undefined, 'nav-assistant')}
       </nav>
       <div className="mt-auto flex flex-col gap-s3 border-t border-line px-2 pt-s4">
         <div className="flex items-center justify-between gap-s2">
@@ -59,9 +62,14 @@ function Sidebar() {
           </div>
           <ThemeSwitch />
         </div>
-        <button className="btn btn-ghost btn-sm" onClick={() => signOut()}>
-          Wyloguj
-        </button>
+        <div className="grid grid-cols-2 gap-s2">
+          <button className="btn btn-ghost btn-sm" onClick={tour.start} data-tour="tour-replay">
+            Samouczek
+          </button>
+          <button className="btn btn-ghost btn-sm" onClick={() => signOut()}>
+            Wyloguj
+          </button>
+        </div>
       </div>
     </aside>
   );
@@ -114,7 +122,9 @@ export function App() {
     <SessionProvider>
       <Tooltip.Provider>
         <BrowserRouter>
-          <Shell />
+          <TourProvider>
+            <Shell />
+          </TourProvider>
         </BrowserRouter>
       </Tooltip.Provider>
     </SessionProvider>

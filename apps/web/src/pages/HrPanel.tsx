@@ -117,7 +117,7 @@ export function HrPanel() {
       {info && <div className="mb-s4"><Alert tone="success">{info}</Alert></div>}
 
       {/* the tiles are shortcuts: the first three filter the table below, the last one jumps to the reminder list */}
-      <div className="mb-s5 grid grid-cols-4 gap-s4">
+      <div className="mb-s5 grid grid-cols-4 gap-s4" data-tour="hr-tiles">
         <StatTile label="Oceny w toku" value={active} pressed={activeOnly} onClick={() => setActiveOnly((v) => !v)} />
         <StatTile label="Po terminie" value={count('OVERDUE')} tone="text-error" pressed={due === 'OVERDUE'} onClick={() => toggleDue('OVERDUE')} />
         <StatTile label="Termin w ciągu 14 dni" value={count('SOON')} tone="text-warning" pressed={due === 'SOON'} onClick={() => toggleDue('SOON')} />
@@ -129,6 +129,7 @@ export function HrPanel() {
       </div>
 
       <Card
+        tour="hr-table"
         title="Procesy ocen"
         actions={
           <div className="flex gap-2">
@@ -207,7 +208,7 @@ export function HrPanel() {
         )}
       </Card>
 
-      <Card title="Ostatnie przypomnienia" className="mt-s5 scroll-mt-s5" id="hr-reminders">
+      <Card title="Ostatnie przypomnienia" className="mt-s5 scroll-mt-s5" id="hr-reminders" tour="hr-reminders">
         {sent.length === 0 ? (
           <Empty>Nie wysłano jeszcze przypomnień.</Empty>
         ) : (

@@ -35,14 +35,14 @@ export function HeadApprovals() {
   return (
     <>
       <PageHeader title="Zatwierdzenia" lead="Pierwsze oceny pracowników komórki. Arkusz pierwszej oceny podpisują bezpośredni przełożony i kierujący komórką organizacyjną." />
-      <Card title={`Do zatwierdzenia (${waiting.length})`} className="mb-s5">
+      <Card title={`Do zatwierdzenia (${waiting.length})`} className="mb-s5" tour="approvals-waiting">
         {waiting.length === 0 ? (
           <Empty>Brak ocen oczekujących na zatwierdzenie. Ocena trafia tutaj po rozmowie oceniającej przeprowadzonej przez przełożonego.</Empty>
         ) : (
           <List evals={waiting} now={now} />
         )}
       </Card>
-      <Card title="Wszystkie pierwsze oceny w komórce">{evals.length === 0 ? <Empty>Brak.</Empty> : <List evals={evals} now={now} />}</Card>
+      <Card title="Wszystkie pierwsze oceny w komórce" tour="approvals-all">{evals.length === 0 ? <Empty>Brak.</Empty> : <List evals={evals} now={now} />}</Card>
     </>
   );
 }

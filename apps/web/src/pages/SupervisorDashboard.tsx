@@ -66,7 +66,7 @@ export function SupervisorDashboard() {
       <PageHeader title="Moje oceny" lead="Oceny Twoich pracowników i postęp każdej z nich." />
       {error && <Alert tone="error">{error}</Alert>}
 
-      <Card title="W toku" className="mb-s5">
+      <Card title="W toku" className="mb-s5" tour="evals-active">
         {active.length === 0 ? (
           <Empty>Brak ocen w toku.</Empty>
         ) : (
@@ -119,8 +119,11 @@ export function SupervisorDashboard() {
         )}
       </Card>
 
-      {withoutActive.length > 0 && (
-        <Card title="Pracownicy bez oceny w toku" className="mb-s5">
+      {/* always shown: it is where a new evaluation starts, so it explains itself even when nobody is waiting */}
+      <Card title="Pracownicy bez oceny w toku" className="mb-s5" tour="evals-start">
+        {withoutActive.length === 0 ? (
+          <Empty>Wszyscy Twoi pracownicy mają ocenę w toku. Gdy pojawi się nowy pracownik albo zakończysz ocenę, rozpoczniesz tutaj kolejną.</Empty>
+        ) : (
           <ul className="flex flex-col divide-y divide-line">
             {withoutActive.map((emp) => (
               <li key={emp.id} className="flex items-center justify-between py-s3">
@@ -138,8 +141,8 @@ export function SupervisorDashboard() {
               </li>
             ))}
           </ul>
-        </Card>
-      )}
+        )}
+      </Card>
 
       {/* an empty „Zakończone” card is just noise — the section appears with the first completed evaluation */}
       {done.length > 0 && (

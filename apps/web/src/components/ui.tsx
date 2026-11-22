@@ -55,15 +55,18 @@ export function Card({
   className = '',
   actions,
   id,
+  tour,
 }: {
   title?: ReactNode;
   children: ReactNode;
   className?: string;
   actions?: ReactNode;
   id?: string;
+  /** Anchor for the onboarding tour (`data-tour`). */
+  tour?: string;
 }) {
   return (
-    <section id={id} className={`card ${className}`}>
+    <section id={id} data-tour={tour} className={`card ${className}`}>
       {(title || actions) && (
         <div className="mb-s4 flex items-start justify-between gap-s4">
           {title && <h5>{title}</h5>}
