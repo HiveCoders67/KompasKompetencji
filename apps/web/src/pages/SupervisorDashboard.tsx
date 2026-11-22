@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  FORM_SHORT,
-  TYPE_LABELS,
   buildNewEvaluation,
   isLocked,
   stepsFor,
@@ -11,8 +9,18 @@ import {
   type Evaluation,
 } from '@kompas/domain';
 import { useSession } from '../app/session';
-import { Alert, Card, DeadlineBadge, Empty, PageHeader, Spinner, StatusBadge } from '../components/ui';
+import { Alert, Card, DeadlineBadge, Empty, EvalKind, PageHeader, Spinner, StatusBadge, rowLink } from '../components/ui';
 import { createEvaluation, newEvaluationId, watchEmployees, watchSupervisorEvaluations } from '../data/repo';
+
+/** „Krok 3 z 5: Ocena wskaźników · ocenione 2 z 5” — the same step numbering as the stepper. */
+function progressLine(e: Evaluation): string | null {
+  const steps = stepsFor(e);
+  const i = steps.findIndex((s) => s.id === e.currentStep);
+  if (i < 0) return null;
+  const scored = e.criteriaAssessments.filter((c) => c.finalScore !== null).length;
+  const extra = e.currentStep === 'assessment' ? ` · ocenione ${scored} z ${e.criteriaAssessments.length}` : '';
+  return `Krok ${i + 1} z ${steps.length}: ${steps[i].label}${extra}`;
+}
 
 export function SupervisorDashboard() {
   const { user } = useSession();
@@ -55,10 +63,7 @@ export function SupervisorDashboard() {
   if (!evals) return <Spinner />;
   return (
     <>
-      <PageHeader
-        title="Moje oceny"
-        lead="Oceny w toku otwierają się na ostatnim kroku. Terminy liczone są wg ustawy i rozporządzeń (z przedłużeniem o nieobecności dłuższe niż miesiąc)."
-      />
+      <PageHeader title="Moje oceny" lead="Oceny Twoich pracowników i postęp każdej z nich." />
       {error && <Alert tone="error">{error}</Alert>}
 
       <Card title="W toku" className="mb-s5">
@@ -78,20 +83,19 @@ export function SupervisorDashboard() {
             </thead>
             <tbody>
               {active.map((e) => {
-                const step = stepsFor(e).find((s) => s.id === e.currentStep);
+                const progress = progressLine(e);
                 return (
-                  <tr key={e.id}>
+                  <tr key={e.id} {...rowLink(() => nav(`/oceny/${e.id}`))}>
                     <td>
                       <p className="font-semibold">{e.employeeName}</p>
                       <p className="hint">{e.department}</p>
                     </td>
                     <td>
-                      {TYPE_LABELS[e.type]}
-                      <p className="hint">{FORM_SHORT[e.formType]}</p>
+                      <EvalKind type={e.type} formType={e.formType} />
                     </td>
                     <td>
                       <StatusBadge status={e.status} type={e.type} />
-                      {step && <p className="hint mt-1">Krok: {step.label}</p>}
+                      {progress && <p className="hint mt-1">{progress}</p>}
                     </td>
                     <td>
                       <DeadlineBadge due={e.deadlines.initialTalkDue} today={now} done={!!e.deadlines.initialTalkDate} />
@@ -137,10 +141,9 @@ export function SupervisorDashboard() {
         </Card>
       )}
 
-      <Card title="Zakończone">
-        {done.length === 0 ? (
-          <Empty>Brak zakończonych ocen.</Empty>
-        ) : (
+      {/* an empty „Zakończone” card is just noise — the section appears with the first completed evaluation */}
+      {done.length > 0 && (
+        <Card title="Zakończone">
           <table className="table">
             <thead>
               <tr>
@@ -153,10 +156,10 @@ export function SupervisorDashboard() {
             </thead>
             <tbody>
               {done.map((e) => (
-                <tr key={e.id}>
+                <tr key={e.id} {...rowLink(() => nav(`/oceny/${e.id}`))}>
                   <td className="font-semibold">{e.employeeName}</td>
                   <td>
-                    {TYPE_LABELS[e.type]} · {FORM_SHORT[e.formType]}
+                    <EvalKind type={e.type} formType={e.formType} />
                   </td>
                   <td>
                     <StatusBadge status={e.status} type={e.type} />
@@ -173,8 +176,8 @@ export function SupervisorDashboard() {
               ))}
             </tbody>
           </table>
-        )}
-      </Card>
+        </Card>
+      )}
     </>
   );
 }

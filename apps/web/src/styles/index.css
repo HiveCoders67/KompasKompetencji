@@ -160,6 +160,7 @@
   .table th { font-weight: 600; color: var(--sf-text-secondary); background: var(--sf-surface); }
   .table tr:last-child td { border-bottom: 0; }
   .table tbody tr:hover td { background: color-mix(in srgb, var(--sf-text-primary) 4%, transparent); }
+  .table tr.row-link { cursor: pointer; }
 
   .nav-pill { display: flex; align-items: center; gap: 10px; padding: var(--sf-nav-padding); border-radius: var(--sf-nav-radius);
     font: 500 14px/1.4 var(--sf-font-body); color: var(--sf-text-primary); border: 1px solid transparent; }
@@ -223,10 +224,23 @@
   }
   .disclosure-trigger:hover .disclosure-chevron { color: var(--sf-text-primary); border-color: var(--sf-border-strong); }
   .disclosure-trigger[aria-expanded='true'] .disclosure-chevron { transform: rotate(180deg); }
+  /* „Pokaż wszystkie …” text toggle with a small chevron */
+  .show-more { gap: 6px; }
+  .show-more-chevron { transition: transform var(--sf-duration) var(--sf-ease); }
+  .show-more[aria-expanded='true'] .show-more-chevron { transform: rotate(180deg); }
 
   /* App name in the sidebar = link to the role's home page */
   .brand-link { display: block; border-radius: var(--sf-radius); transition: opacity var(--sf-duration) var(--sf-ease); }
   .brand-link:hover { opacity: 0.75; }
+  /* HR KPI tile — a button that filters the table (pressed = active filter) */
+  .stat-tile { text-align: left; cursor: pointer; transition: border-color var(--sf-duration) var(--sf-ease), background var(--sf-duration) var(--sf-ease); }
+  .stat-tile:hover { border-color: var(--sf-border-strong); }
+  .stat-tile[aria-pressed='true'] { border-color: var(--sf-primary); box-shadow: inset 0 0 0 1px var(--sf-primary); }
+  .stat-tile:focus-visible { outline: 3px solid var(--sf-primary); outline-offset: 2px; }
+  /* „← Moje oceny” above the evaluation title */
+  .back-link { display: inline-flex; align-items: center; gap: 4px; font: 500 14px/1.4 var(--sf-font-body); color: var(--sf-text-secondary); border-radius: 4px; }
+  .back-link:hover { color: var(--sf-text-primary); text-decoration: underline; text-underline-offset: 3px; }
+  .back-link:focus-visible { outline: 3px solid var(--sf-primary); outline-offset: 2px; }
   .brand-link:focus-visible { outline: 3px solid var(--sf-primary); outline-offset: 2px; }
 
   /* Login card: panels swap with a short slide + fade, the card height follows smoothly.
@@ -259,7 +273,7 @@
 @keyframes sf-zoom { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: none; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .sf-collapse, .disclosure-trigger, .disclosure-chevron, .step-tab, .brand-link { transition: none; }
+  .sf-collapse, .disclosure-trigger, .disclosure-chevron, .show-more-chevron, .step-tab, .brand-link, .stat-tile { transition: none; }
   .save-dot.saving { animation: none; }
   .auto-height, .switch-thumb { transition: none; }
   .login-panel { animation: none; }

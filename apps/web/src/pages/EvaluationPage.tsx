@@ -154,12 +154,16 @@ export function EvaluationPage() {
     next: () => idx < steps.length - 1 && goTo(steps[idx + 1].id),
     flush,
   };
-  const saveAndExit = async () => {
+  // autosave keeps the draft up to date; leaving still waits for the pending write, and stays put if it fails
+  const back = isSupervisor ? { to: '/oceny', label: 'Moje oceny' } : { to: '/zatwierdzenia', label: 'Zatwierdzenia' };
+  const leave = async (e: React.MouseEvent) => {
+    if (readOnly) return;
+    e.preventDefault();
     try {
       await flush();
-      nav('/oceny');
+      nav(back.to);
     } catch {
-      /* error shown */
+      /* error shown in SaveStatus */
     }
   };
 
@@ -167,6 +171,12 @@ export function EvaluationPage() {
     <div className={assistantOpen ? 'pr-[420px]' : ''}>
       <header className="mb-s5 flex items-start justify-between gap-s4">
         <div>
+          <Link to={back.to} onClick={leave} className="back-link mb-s2">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M10 3.5L5.5 8l4.5 4.5" />
+            </svg>
+            {back.label}
+          </Link>
           <p className="hint">
             {TYPE_LABELS[draft.type]} · {FORM_LABELS[draft.formType]}
           </p>
@@ -189,11 +199,6 @@ export function EvaluationPage() {
           <button className="btn btn-secondary" onClick={() => setAssistantOpen((o) => !o)} aria-expanded={assistantOpen}>
             {assistantOpen ? 'Ukryj asystenta' : 'Asystent AI'}
           </button>
-          {isSupervisor && !readOnly && (
-            <button className="btn btn-secondary" onClick={saveAndExit}>
-              Zapisz wersję roboczą i wyjdź
-            </button>
-          )}
         </div>
       </header>
 

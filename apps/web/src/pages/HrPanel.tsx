@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  FORM_SHORT,
   STATUS_LABELS,
-  TYPE_LABELS,
   deadlineState,
   formatPL,
   today,
@@ -13,7 +11,7 @@ import {
   type Reminder,
 } from '@kompas/domain';
 import { useSession } from '../app/session';
-import { Alert, Card, DeadlineBadge, Empty, Field, Modal, PageHeader, Spinner, StatusBadge } from '../components/ui';
+import { Alert, Card, DeadlineBadge, Empty, EvalKind, Field, Modal, PageHeader, Spinner, StatusBadge } from '../components/ui';
 import { sendReminder, watchOfficeReminders, watchTracking } from '../data/repo';
 
 /*
@@ -50,6 +48,7 @@ export function HrPanel() {
   const [dept, setDept] = useState('');
   const [status, setStatus] = useState<'' | EvaluationStatus>('');
   const [due, setDue] = useState<'' | 'OVERDUE' | 'SOON'>('');
+  const [activeOnly, setActiveOnly] = useState(false);
   const [target, setTarget] = useState<EvaluationTracking | null>(null);
   const [message, setMessage] = useState('');
   const [info, setInfo] = useState<string | null>(null);
@@ -68,11 +67,29 @@ export function HrPanel() {
 
   const enriched = useMemo(() => (rows ?? []).map((t) => ({ t, a: nextAction(t, now) })), [rows, now]);
   const departments = [...new Set(enriched.map((x) => x.t.department))].sort();
+  const isActive = (t: EvaluationTracking) => t.status !== 'COMPLETED' && t.status !== 'ACKNOWLEDGED';
   const filtered = enriched
-    .filter(({ t, a }) => (!dept || t.department === dept) && (!status || t.status === status) && (!due || a.state === due))
+    .filter(
+      ({ t, a }) =>
+        (!dept || t.department === dept) && (!status || t.status === status) && (!due || a.state === due) && (!activeOnly || isActive(t)),
+    )
     .sort((x, y) => (x.a.due ?? '9999').localeCompare(y.a.due ?? '9999'));
   const count = (st: DeadlineState) => enriched.filter((x) => x.a.state === st).length;
-  const active = enriched.filter(({ t }) => t.status !== 'COMPLETED' && t.status !== 'ACKNOWLEDGED').length;
+  const active = enriched.filter(({ t }) => isActive(t)).length;
+  const anyFilter = !!(dept || status || due || activeOnly);
+  const clearFilters = () => {
+    setDept('');
+    setStatus('');
+    setDue('');
+    setActiveOnly(false);
+  };
+  // reminders come newest first → the first one per evaluation is the latest
+  const lastReminder = useMemo(() => {
+    const m = new Map<string, Reminder>();
+    for (const r of sent) if (!m.has(r.evaluationId)) m.set(r.evaluationId, r);
+    return m;
+  }, [sent]);
+  const toggleDue = (v: 'OVERDUE' | 'SOON') => setDue((d) => (d === v ? '' : v));
 
   const open = (t: EvaluationTracking, a: NextAction) => {
     setTarget(t);
@@ -99,25 +116,28 @@ export function HrPanel() {
       />
       {info && <div className="mb-s4"><Alert tone="success">{info}</Alert></div>}
 
+      {/* the tiles are shortcuts: the first three filter the table below, the last one jumps to the reminder list */}
       <div className="mb-s5 grid grid-cols-4 gap-s4">
-        {[
-          ['Oceny w toku', active, ''],
-          ['Po terminie', count('OVERDUE'), 'text-error'],
-          ['Termin w ciągu 14 dni', count('SOON'), 'text-warning'],
-          ['Wysłane przypomnienia', sent.length, ''],
-        ].map(([label, value, cls]) => (
-          <div key={label as string} className="card">
-            <p className="hint">{label}</p>
-            <p className={`font-heading text-[34px] leading-tight ${cls}`}>{value}</p>
-          </div>
-        ))}
+        <StatTile label="Oceny w toku" value={active} pressed={activeOnly} onClick={() => setActiveOnly((v) => !v)} />
+        <StatTile label="Po terminie" value={count('OVERDUE')} tone="text-error" pressed={due === 'OVERDUE'} onClick={() => toggleDue('OVERDUE')} />
+        <StatTile label="Termin w ciągu 14 dni" value={count('SOON')} tone="text-warning" pressed={due === 'SOON'} onClick={() => toggleDue('SOON')} />
+        <StatTile
+          label="Wysłane przypomnienia"
+          value={sent.length}
+          onClick={() => document.getElementById('hr-reminders')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+        />
       </div>
 
       <Card
         title="Procesy ocen"
         actions={
           <div className="flex gap-2">
-            <select className="select text-sm" value={dept} onChange={(e) => setDept(e.target.value)} aria-label="Komórka">
+            {anyFilter && (
+              <button className="btn btn-ghost btn-sm shrink-0 whitespace-nowrap" onClick={clearFilters}>
+                Wyczyść filtry
+              </button>
+            )}
+            <select className="select w-[240px] text-sm" value={dept} onChange={(e) => setDept(e.target.value)} aria-label="Komórka">
               <option value="">Wszystkie komórki</option>
               {departments.map((d) => (
                 <option key={d}>{d}</option>
@@ -160,8 +180,7 @@ export function HrPanel() {
                   <td className="font-semibold">{t.employeeName}</td>
                   <td className="text-sm">{t.department}</td>
                   <td className="text-sm">
-                    {TYPE_LABELS[t.type]}
-                    <p className="hint">{FORM_SHORT[t.formType]}</p>
+                    <EvalKind type={t.type} formType={t.formType} />
                   </td>
                   <td>
                     <StatusBadge status={t.status} type={t.type} />
@@ -177,6 +196,9 @@ export function HrPanel() {
                         Przypomnij
                       </button>
                     )}
+                    {lastReminder.get(t.evaluationId) && (
+                      <p className="hint mt-1 whitespace-nowrap text-xs">ostatnie: {shortDate(lastReminder.get(t.evaluationId)!.createdAt)}</p>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -185,7 +207,7 @@ export function HrPanel() {
         )}
       </Card>
 
-      <Card title="Ostatnie przypomnienia" className="mt-s5">
+      <Card title="Ostatnie przypomnienia" className="mt-s5 scroll-mt-s5" id="hr-reminders">
         {sent.length === 0 ? (
           <Empty>Nie wysłano jeszcze przypomnień.</Empty>
         ) : (
@@ -217,5 +239,17 @@ export function HrPanel() {
         </div>
       </Modal>
     </>
+  );
+}
+
+const shortDate = (instant: string | null) => (instant ? new Date(instant).toLocaleDateString('pl-PL') : '');
+
+/** KPI tile that is also a filter toggle (aria-pressed) or a shortcut. */
+function StatTile({ label, value, tone = '', pressed, onClick }: { label: string; value: number; tone?: string; pressed?: boolean; onClick: () => void }) {
+  return (
+    <button type="button" className="card stat-tile" aria-pressed={pressed} onClick={onClick}>
+      <span className="hint block">{label}</span>
+      <span className={`block font-heading text-[34px] leading-tight ${tone}`}>{value}</span>
+    </button>
   );
 }

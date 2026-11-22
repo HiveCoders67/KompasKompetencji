@@ -101,14 +101,14 @@ export function StepOsp({ ev, employee, update, setEmployee, readOnly, next, flu
               </label>
               <select
                 className="select text-sm"
-                aria-label="Wybierz profil demo"
+                aria-label="Wczytaj przykładowy OSP z danych demo"
                 value=""
                 onChange={(e) => {
                   const p = DEMO_OSP_PROFILES.find((x) => x.file === e.target.value);
                   if (p) setParsed(p.parsed);
                 }}
               >
-                <option value="">Profil demo…</option>
+                <option value="">Wczytaj przykładowy OSP…</option>
                 {DEMO_OSP_PROFILES.map((p) => (
                   <option key={p.file} value={p.file}>
                     {p.label}
@@ -123,7 +123,8 @@ export function StepOsp({ ev, employee, update, setEmployee, readOnly, next, flu
         {parsed ? (
           <div className="flex flex-col gap-s4">
             <Alert title="Wynik parsowania — sprawdź i zatwierdź">Parser odczytał pola strukturalne z szablonu MC. Zatwierdzenie zapisze OSP w profilu pracownika.</Alert>
-            <OspView osp={{ ...toOsp(parsed) }} warnings={parsed.warnings} />
+            {/* the parse result is being checked — show every task */}
+            <OspView osp={{ ...toOsp(parsed) }} warnings={parsed.warnings} allTasks />
             <div className="flex gap-s2">
               <button className="btn" onClick={confirmParsed} disabled={saving}>
                 Zatwierdź wynik parsowania
@@ -274,7 +275,13 @@ export function StepOsp({ ev, employee, update, setEmployee, readOnly, next, flu
   );
 }
 
-function OspView({ osp, warnings }: { osp: Osp; warnings?: string[] }) {
+/** Tasks shown before „Pokaż wszystkie” — enough to recognise the position without a wall of text. */
+const VISIBLE_TASKS = 3;
+
+function OspView({ osp, warnings, allTasks = false }: { osp: Osp; warnings?: string[]; allTasks?: boolean }) {
+  const [tasksOpen, setTasksOpen] = useState(allTasks);
+  const shown = osp.mainTasks.slice(0, VISIBLE_TASKS);
+  const rest = osp.mainTasks.slice(VISIBLE_TASKS);
   return (
     <div className="flex flex-col gap-s3">
       {warnings && warnings.length > 0 && <Alert tone="warning" title="Uwagi parsera">{warnings.join(' ')}</Alert>}
@@ -301,10 +308,37 @@ function OspView({ osp, warnings }: { osp: Osp; warnings?: string[] }) {
         <dt className="hint">Zadania</dt>
         <dd>
           <ol className="list-decimal pl-5">
-            {osp.mainTasks.map((t, i) => (
+            {shown.map((t, i) => (
               <li key={i}>{t}</li>
             ))}
           </ol>
+          {rest.length > 0 && (
+            <>
+              <div id="osp-more-tasks" className="sf-collapse" data-collapsed={!tasksOpen} aria-hidden={!tasksOpen} inert={!tasksOpen}>
+                <div className="sf-collapse-inner">
+                  <ol className="list-decimal pl-5" start={VISIBLE_TASKS + 1}>
+                    {rest.map((t, i) => (
+                      <li key={i}>{t}</li>
+                    ))}
+                  </ol>
+                </div>
+              </div>
+              {!allTasks && (
+                <button
+                  type="button"
+                  className="show-more btn btn-ghost btn-sm mt-1 !px-2"
+                  aria-expanded={tasksOpen}
+                  aria-controls="osp-more-tasks"
+                  onClick={() => setTasksOpen((o) => !o)}
+                >
+                  {tasksOpen ? 'Zwiń zadania' : `Pokaż wszystkie zadania (${osp.mainTasks.length})`}
+                  <svg className="show-more-chevron" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M3.5 6L8 10.5 12.5 6" />
+                  </svg>
+                </button>
+              )}
+            </>
+          )}
         </dd>
         <dt className="hint">Kompetencje miękkie</dt>
         <dd>{osp.softCompetencies.map((c) => COMPETENCY_BY_CODE[c].name).join(', ') || '—'}</dd>

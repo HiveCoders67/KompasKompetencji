@@ -1,7 +1,41 @@
 import * as Dialog from '@radix-ui/react-dialog';
 import * as Tooltip from '@radix-ui/react-tooltip';
-import { deadlineState, formatPL, statusLabel, type DateOnly, type EvaluationStatus, type EvaluationType } from '@kompas/domain';
-import type { ReactNode } from 'react';
+import {
+  FORM_SHORT,
+  TYPE_LABELS,
+  deadlineState,
+  formatPL,
+  statusLabel,
+  type DateOnly,
+  type EvaluationStatus,
+  type EvaluationType,
+  type FormType,
+} from '@kompas/domain';
+import type { MouseEvent, ReactNode } from 'react';
+
+/** Evaluation kind for tables: the first evaluation has a single form, so only the periodic one names its form. */
+export function EvalKind({ type, formType }: { type: EvaluationType; formType: FormType }) {
+  return (
+    <>
+      {TYPE_LABELS[type]}
+      {type === 'PERIODIC_EVALUATION' && <p className="hint">{FORM_SHORT[formType]}</p>}
+    </>
+  );
+}
+
+/**
+ * Makes a whole table row open its target on click. The row keeps a real link / button in its last cell —
+ * that one is the keyboard and screen-reader path; clicks on links and buttons inside the row are left alone.
+ */
+export function rowLink(open: () => void) {
+  return {
+    className: 'row-link',
+    onClick: (e: MouseEvent<HTMLTableRowElement>) => {
+      if ((e.target as HTMLElement).closest('a, button, input, select, textarea, label')) return;
+      open();
+    },
+  };
+}
 
 export function PageHeader({ title, lead, actions }: { title: string; lead?: ReactNode; actions?: ReactNode }) {
   return (
@@ -15,9 +49,21 @@ export function PageHeader({ title, lead, actions }: { title: string; lead?: Rea
   );
 }
 
-export function Card({ title, children, className = '', actions }: { title?: ReactNode; children: ReactNode; className?: string; actions?: ReactNode }) {
+export function Card({
+  title,
+  children,
+  className = '',
+  actions,
+  id,
+}: {
+  title?: ReactNode;
+  children: ReactNode;
+  className?: string;
+  actions?: ReactNode;
+  id?: string;
+}) {
   return (
-    <section className={`card ${className}`}>
+    <section id={id} className={`card ${className}`}>
       {(title || actions) && (
         <div className="mb-s4 flex items-start justify-between gap-s4">
           {title && <h5>{title}</h5>}
