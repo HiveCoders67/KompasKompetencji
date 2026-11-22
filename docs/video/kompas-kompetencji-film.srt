@@ -1,0 +1,119 @@
+1
+00:00:00,000 --> 00:00:02,510
+Ocena pracownika w służbie cywilnej?
+
+2
+00:00:02,560 --> 00:00:08,830
+To ustawa, dwa rozporządzenia, urzędowe arkusze i terminy, których łatwo nie dopilnować.
+
+3
+00:00:08,880 --> 00:00:13,140
+A kompetencje często ocenia się… na wyczucie.
+
+4
+00:00:13,140 --> 00:00:19,730
+Kompas Kompetencji prowadzi przełożonego krok po kroku — przez pierwszą ocenę i ocenę okresową.
+
+5
+00:00:19,780 --> 00:00:22,690
+System podpowiada i pilnuje przepisów.
+
+6
+00:00:22,740 --> 00:00:26,200
+Ale ocenę zawsze wybiera człowiek.
+
+7
+00:00:26,200 --> 00:00:29,430
+Ocena okresowa zaczyna się od opisu stanowiska.
+
+8
+00:00:29,480 --> 00:00:33,830
+Wgrywasz plik — i system sam wskazuje arkusz B albo C.
+
+9
+00:00:33,880 --> 00:00:39,420
+Asystent proponuje kryteria dodatkowe, uzasadniając je zadaniami z opisu.
+
+10
+00:00:39,420 --> 00:00:44,010
+Dalej: model kompetencji ministerstwa, czyli opisane zachowania.
+
+11
+00:00:44,060 --> 00:00:46,810
+Zaznaczasz to, co naprawdę widziałeś.
+
+12
+00:00:46,860 --> 00:00:51,760
+System wylicza sugestię, a terminy ustawowe liczy za ciebie.
+
+13
+00:00:51,760 --> 00:00:55,270
+Wynik liczy kod — dokładnie według rozporządzeń.
+
+14
+00:00:55,320 --> 00:00:59,630
+Średnia ponad pięć i pół, ale jedno kryterium na jeden punkt?
+
+15
+00:00:59,680 --> 00:01:01,070
+Ocena negatywna.
+
+16
+00:01:01,120 --> 00:01:03,700
+Aplikacja wie to od razu.
+
+17
+00:01:03,700 --> 00:01:05,170
+Wątpliwość prawna?
+
+18
+00:01:05,220 --> 00:01:10,690
+Asystent formalny odpowiada tylko na podstawie przepisów, zawsze z cytatem ze źródła.
+
+19
+00:01:10,740 --> 00:01:15,560
+A gdy czegoś nie ma w bazie wiedzy — mówi wprost: nie wiem.
+
+20
+00:01:15,560 --> 00:01:20,870
+Asystent rozmowy przygotuje agendę, informację zwrotną i szkic uzasadnienia.
+
+21
+00:01:20,920 --> 00:01:24,310
+Do formularza trafi on dopiero po twoim kliknięciu.
+
+22
+00:01:24,360 --> 00:01:29,100
+Na koniec — arkusz w PDF, zgodny z urzędowym wzorem.
+
+23
+00:01:29,100 --> 00:01:35,290
+Kadry widzą statusy i terminy wszystkich ocen i jednym kliknięciem wysyłają przypomnienie.
+
+24
+00:01:35,340 --> 00:01:36,490
+Treści ocen?
+
+25
+00:01:36,540 --> 00:01:38,170
+Tych nie widzą wcale.
+
+26
+00:01:38,220 --> 00:01:40,320
+Tak działa RODO.
+
+27
+00:01:40,320 --> 00:01:43,790
+Role, wiele urzędów, dostępność dla każdego.
+
+28
+00:01:43,840 --> 00:01:46,350
+Dziś — płatny, szybki Gemini.
+
+29
+00:01:46,400 --> 00:01:49,710
+W urzędzie — polski model, uruchomiony lokalnie.
+
+30
+00:01:49,760 --> 00:01:56,400
+Kompas Kompetencji: przepisów pilnuje system, decyzję podejmuje człowiek.

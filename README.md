@@ -66,6 +66,7 @@ Architektura jest przygotowana pod przyszłe integracje z systemami klasy EZD i 
 | [Asystenci AI i RAG](docs/03_ai_assistants_and_rag_spec.md) | jak działa AI i jakie ma zabezpieczenia |
 | [Dane demo i formularze](docs/04_test_data_osp_and_forms.md) | scenariusze testowe, opisy stanowisk, arkusze |
 | [Struktura bazy danych](docs/firebase/firestore_structure.md) | kolekcje, uprawnienia, reguły bezpieczeństwa |
+| [Film prezentujący projekt](docs/05_film_prezentacja.md) | scenariusz, lektor (ElevenLabs), automatyczny montaż |
 
 <details>
 <summary>Dla zespołu: testy i wdrożenie</summary>

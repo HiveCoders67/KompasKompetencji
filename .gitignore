@@ -13,3 +13,8 @@ service-account*.json
 # Cloud Functions secrets for the emulator
 .secret.local
 **/.secret.local
+
+# film tooling — intermediate files (docs/video/film)
+docs/video/film/kadry/
+docs/video/.film-recording.mp4
+docs/video/.preview-*.png

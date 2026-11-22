@@ -1,0 +1,1175 @@
+[
+ {
+  "id": "01",
+  "start": 0,
+  "end": 12.64,
+  "words": [
+   {
+    "w": "Ocena",
+    "start": 0,
+    "end": 0.4
+   },
+   {
+    "w": "pracownika",
+    "start": 0.44,
+    "end": 1.04
+   },
+   {
+    "w": "w",
+    "start": 1.067,
+    "end": 1.093
+   },
+   {
+    "w": "służbie",
+    "start": 1.12,
+    "end": 1.44
+   },
+   {
+    "w": "cywilnej?",
+    "start": 1.52,
+    "end": 2.36
+   },
+   {
+    "w": "To",
+    "start": 2.56,
+    "end": 2.64
+   },
+   {
+    "w": "ustawa,",
+    "start": 2.72,
+    "end": 3.44
+   },
+   {
+    "w": "dwa",
+    "start": 3.52,
+    "end": 3.68
+   },
+   {
+    "w": "rozporządzenia,",
+    "start": 3.8,
+    "end": 4.72
+   },
+   {
+    "w": "urzędowe",
+    "start": 4.8,
+    "end": 5.2
+   },
+   {
+    "w": "arkusze",
+    "start": 5.28,
+    "end": 5.84
+   },
+   {
+    "w": "i",
+    "start": 5.92,
+    "end": 6
+   },
+   {
+    "w": "terminy,",
+    "start": 6.08,
+    "end": 6.8
+   },
+   {
+    "w": "których",
+    "start": 6.84,
+    "end": 7.12
+   },
+   {
+    "w": "łatwo",
+    "start": 7.2,
+    "end": 7.6
+   },
+   {
+    "w": "nie",
+    "start": 7.68,
+    "end": 7.76
+   },
+   {
+    "w": "dopilnować.",
+    "start": 7.813,
+    "end": 8.72
+   },
+   {
+    "w": "A",
+    "start": 8.88,
+    "end": 8.96
+   },
+   {
+    "w": "kompetencje",
+    "start": 9.04,
+    "end": 9.76
+   },
+   {
+    "w": "często",
+    "start": 9.92,
+    "end": 10.24
+   },
+   {
+    "w": "ocenia",
+    "start": 10.32,
+    "end": 10.72
+   },
+   {
+    "w": "się…",
+    "start": 10.8,
+    "end": 11.24
+   },
+   {
+    "w": "na",
+    "start": 11.44,
+    "end": 11.52
+   },
+   {
+    "w": "wyczucie.",
+    "start": 11.6,
+    "end": 12.4
+   }
+  ]
+ },
+ {
+  "id": "02",
+  "start": 12.64,
+  "end": 25.2,
+  "words": [
+   {
+    "w": "Kompas",
+    "start": 12.64,
+    "end": 13.04
+   },
+   {
+    "w": "Kompetencji",
+    "start": 13.12,
+    "end": 13.68
+   },
+   {
+    "w": "prowadzi",
+    "start": 13.76,
+    "end": 14.08
+   },
+   {
+    "w": "przełożonego",
+    "start": 14.16,
+    "end": 14.8
+   },
+   {
+    "w": "krok",
+    "start": 14.96,
+    "end": 15.28
+   },
+   {
+    "w": "po",
+    "start": 15.36,
+    "end": 15.44
+   },
+   {
+    "w": "kroku",
+    "start": 15.52,
+    "end": 15.92
+   },
+   {
+    "w": "—",
+    "start": 16.24,
+    "end": 16.28
+   },
+   {
+    "w": "przez",
+    "start": 16.32,
+    "end": 16.48
+   },
+   {
+    "w": "pierwszą",
+    "start": 16.56,
+    "end": 16.96
+   },
+   {
+    "w": "ocenę",
+    "start": 17.04,
+    "end": 17.52
+   },
+   {
+    "w": "i",
+    "start": 17.68,
+    "end": 17.76
+   },
+   {
+    "w": "ocenę",
+    "start": 17.84,
+    "end": 18.24
+   },
+   {
+    "w": "okresową.",
+    "start": 18.32,
+    "end": 19.12
+   },
+   {
+    "w": "System",
+    "start": 19.28,
+    "end": 19.6
+   },
+   {
+    "w": "podpowiada",
+    "start": 19.68,
+    "end": 20.4
+   },
+   {
+    "w": "i",
+    "start": 20.48,
+    "end": 20.56
+   },
+   {
+    "w": "pilnuje",
+    "start": 20.72,
+    "end": 21.12
+   },
+   {
+    "w": "przepisów.",
+    "start": 21.2,
+    "end": 22.16
+   },
+   {
+    "w": "Ale",
+    "start": 22.24,
+    "end": 22.32
+   },
+   {
+    "w": "ocenę",
+    "start": 22.48,
+    "end": 22.96
+   },
+   {
+    "w": "zawsze",
+    "start": 23.28,
+    "end": 23.68
+   },
+   {
+    "w": "wybiera",
+    "start": 23.76,
+    "end": 24
+   },
+   {
+    "w": "człowiek.",
+    "start": 24.08,
+    "end": 24.92
+   }
+  ]
+ },
+ {
+  "id": "03",
+  "start": 25.2,
+  "end": 37.92,
+  "words": [
+   {
+    "w": "Ocena",
+    "start": 25.2,
+    "end": 25.52
+   },
+   {
+    "w": "okresowa",
+    "start": 25.6,
+    "end": 26.16
+   },
+   {
+    "w": "zaczyna",
+    "start": 26.24,
+    "end": 26.56
+   },
+   {
+    "w": "się",
+    "start": 26.64,
+    "end": 26.8
+   },
+   {
+    "w": "od",
+    "start": 26.88,
+    "end": 26.96
+   },
+   {
+    "w": "opisu",
+    "start": 27.04,
+    "end": 27.44
+   },
+   {
+    "w": "stanowiska.",
+    "start": 27.56,
+    "end": 28.32
+   },
+   {
+    "w": "Wgrywasz",
+    "start": 28.48,
+    "end": 29
+   },
+   {
+    "w": "plik",
+    "start": 29.04,
+    "end": 29.36
+   },
+   {
+    "w": "—",
+    "start": 29.52,
+    "end": 29.56
+   },
+   {
+    "w": "i",
+    "start": 29.6,
+    "end": 29.68
+   },
+   {
+    "w": "system",
+    "start": 29.76,
+    "end": 30.08
+   },
+   {
+    "w": "sam",
+    "start": 30.24,
+    "end": 30.4
+   },
+   {
+    "w": "wskazuje",
+    "start": 30.48,
+    "end": 30.96
+   },
+   {
+    "w": "arkusz",
+    "start": 31.04,
+    "end": 31.44
+   },
+   {
+    "w": "B",
+    "start": 31.52,
+    "end": 31.76
+   },
+   {
+    "w": "albo",
+    "start": 31.92,
+    "end": 32.16
+   },
+   {
+    "w": "C.",
+    "start": 32.32,
+    "end": 32.56
+   },
+   {
+    "w": "Asystent",
+    "start": 32.88,
+    "end": 33.44
+   },
+   {
+    "w": "proponuje",
+    "start": 33.52,
+    "end": 33.92
+   },
+   {
+    "w": "kryteria",
+    "start": 34,
+    "end": 34.4
+   },
+   {
+    "w": "dodatkowe,",
+    "start": 34.48,
+    "end": 35.28
+   },
+   {
+    "w": "uzasadniając",
+    "start": 35.36,
+    "end": 36.08
+   },
+   {
+    "w": "je",
+    "start": 36.16,
+    "end": 36.24
+   },
+   {
+    "w": "zadaniami",
+    "start": 36.28,
+    "end": 36.8
+   },
+   {
+    "w": "z",
+    "start": 36.84,
+    "end": 36.88
+   },
+   {
+    "w": "opisu.",
+    "start": 36.96,
+    "end": 37.84
+   }
+  ]
+ },
+ {
+  "id": "04",
+  "start": 37.92,
+  "end": 49.76,
+  "words": [
+   {
+    "w": "Dalej:",
+    "start": 37.92,
+    "end": 38.48
+   },
+   {
+    "w": "model",
+    "start": 38.64,
+    "end": 38.88
+   },
+   {
+    "w": "kompetencji",
+    "start": 38.96,
+    "end": 39.56
+   },
+   {
+    "w": "ministerstwa,",
+    "start": 39.6,
+    "end": 40.64
+   },
+   {
+    "w": "czyli",
+    "start": 40.68,
+    "end": 40.88
+   },
+   {
+    "w": "opisane",
+    "start": 40.96,
+    "end": 41.44
+   },
+   {
+    "w": "zachowania.",
+    "start": 41.52,
+    "end": 42.36
+   },
+   {
+    "w": "Zaznaczasz",
+    "start": 42.56,
+    "end": 43.12
+   },
+   {
+    "w": "to,",
+    "start": 43.2,
+    "end": 43.44
+   },
+   {
+    "w": "co",
+    "start": 43.52,
+    "end": 43.6
+   },
+   {
+    "w": "naprawdę",
+    "start": 43.68,
+    "end": 44.24
+   },
+   {
+    "w": "widziałeś.",
+    "start": 44.32,
+    "end": 45.16
+   },
+   {
+    "w": "System",
+    "start": 45.36,
+    "end": 45.76
+   },
+   {
+    "w": "wylicza",
+    "start": 45.84,
+    "end": 46.16
+   },
+   {
+    "w": "sugestię,",
+    "start": 46.24,
+    "end": 46.96
+   },
+   {
+    "w": "a",
+    "start": 47.04,
+    "end": 47.12
+   },
+   {
+    "w": "terminy",
+    "start": 47.2,
+    "end": 47.6
+   },
+   {
+    "w": "ustawowe",
+    "start": 47.68,
+    "end": 48.24
+   },
+   {
+    "w": "liczy",
+    "start": 48.4,
+    "end": 48.64
+   },
+   {
+    "w": "za",
+    "start": 48.72,
+    "end": 48.8
+   },
+   {
+    "w": "ciebie.",
+    "start": 48.88,
+    "end": 49.52
+   }
+  ]
+ },
+ {
+  "id": "05",
+  "start": 49.76,
+  "end": 61.2,
+  "words": [
+   {
+    "w": "Wynik",
+    "start": 49.76,
+    "end": 50.08
+   },
+   {
+    "w": "liczy",
+    "start": 50.16,
+    "end": 50.4
+   },
+   {
+    "w": "kod",
+    "start": 50.48,
+    "end": 50.8
+   },
+   {
+    "w": "—",
+    "start": 51.04,
+    "end": 51.08
+   },
+   {
+    "w": "dokładnie",
+    "start": 51.12,
+    "end": 51.76
+   },
+   {
+    "w": "według",
+    "start": 51.84,
+    "end": 52.08
+   },
+   {
+    "w": "rozporządzeń.",
+    "start": 52.2,
+    "end": 53.28
+   },
+   {
+    "w": "Średnia",
+    "start": 53.32,
+    "end": 53.68
+   },
+   {
+    "w": "ponad",
+    "start": 53.76,
+    "end": 54
+   },
+   {
+    "w": "pięć",
+    "start": 54.16,
+    "end": 54.32
+   },
+   {
+    "w": "i",
+    "start": 54.4,
+    "end": 54.48
+   },
+   {
+    "w": "pół,",
+    "start": 54.64,
+    "end": 55.12
+   },
+   {
+    "w": "ale",
+    "start": 55.24,
+    "end": 55.36
+   },
+   {
+    "w": "jedno",
+    "start": 55.44,
+    "end": 55.76
+   },
+   {
+    "w": "kryterium",
+    "start": 55.84,
+    "end": 56.32
+   },
+   {
+    "w": "na",
+    "start": 56.4,
+    "end": 56.48
+   },
+   {
+    "w": "jeden",
+    "start": 56.56,
+    "end": 56.8
+   },
+   {
+    "w": "punkt?",
+    "start": 56.88,
+    "end": 57.36
+   },
+   {
+    "w": "Ocena",
+    "start": 57.68,
+    "end": 58.08
+   },
+   {
+    "w": "negatywna.",
+    "start": 58.16,
+    "end": 58.96
+   },
+   {
+    "w": "Aplikacja",
+    "start": 59.12,
+    "end": 59.76
+   },
+   {
+    "w": "wie",
+    "start": 59.84,
+    "end": 60
+   },
+   {
+    "w": "to",
+    "start": 60.08,
+    "end": 60.16
+   },
+   {
+    "w": "od",
+    "start": 60.24,
+    "end": 60.32
+   },
+   {
+    "w": "razu.",
+    "start": 60.4,
+    "end": 60.8
+   }
+  ]
+ },
+ {
+  "id": "06",
+  "start": 61.2,
+  "end": 72.56,
+  "words": [
+   {
+    "w": "Wątpliwość",
+    "start": 61.2,
+    "end": 61.84
+   },
+   {
+    "w": "prawna?",
+    "start": 61.92,
+    "end": 62.4
+   },
+   {
+    "w": "Asystent",
+    "start": 62.72,
+    "end": 63.2
+   },
+   {
+    "w": "formalny",
+    "start": 63.28,
+    "end": 63.76
+   },
+   {
+    "w": "odpowiada",
+    "start": 63.84,
+    "end": 64.32
+   },
+   {
+    "w": "tylko",
+    "start": 64.48,
+    "end": 64.72
+   },
+   {
+    "w": "na",
+    "start": 64.8,
+    "end": 64.88
+   },
+   {
+    "w": "podstawie",
+    "start": 64.96,
+    "end": 65.36
+   },
+   {
+    "w": "przepisów,",
+    "start": 65.4,
+    "end": 66.24
+   },
+   {
+    "w": "zawsze",
+    "start": 66.32,
+    "end": 66.72
+   },
+   {
+    "w": "z",
+    "start": 66.76,
+    "end": 66.8
+   },
+   {
+    "w": "cytatem",
+    "start": 66.88,
+    "end": 67.28
+   },
+   {
+    "w": "ze",
+    "start": 67.36,
+    "end": 67.44
+   },
+   {
+    "w": "źródła.",
+    "start": 67.52,
+    "end": 68
+   },
+   {
+    "w": "A",
+    "start": 68.24,
+    "end": 68.32
+   },
+   {
+    "w": "gdy",
+    "start": 68.4,
+    "end": 68.56
+   },
+   {
+    "w": "czegoś",
+    "start": 68.64,
+    "end": 68.96
+   },
+   {
+    "w": "nie",
+    "start": 69.04,
+    "end": 69.12
+   },
+   {
+    "w": "ma",
+    "start": 69.2,
+    "end": 69.28
+   },
+   {
+    "w": "w",
+    "start": 69.36,
+    "end": 69.44
+   },
+   {
+    "w": "bazie",
+    "start": 69.52,
+    "end": 69.68
+   },
+   {
+    "w": "wiedzy",
+    "start": 69.76,
+    "end": 70.08
+   },
+   {
+    "w": "—",
+    "start": 70.32,
+    "end": 70.36
+   },
+   {
+    "w": "mówi",
+    "start": 70.4,
+    "end": 70.64
+   },
+   {
+    "w": "wprost:",
+    "start": 70.72,
+    "end": 71.28
+   },
+   {
+    "w": "nie",
+    "start": 71.6,
+    "end": 71.68
+   },
+   {
+    "w": "wiem.",
+    "start": 71.76,
+    "end": 72.32
+   }
+  ]
+ },
+ {
+  "id": "07",
+  "start": 72.56,
+  "end": 85.6,
+  "words": [
+   {
+    "w": "Asystent",
+    "start": 72.56,
+    "end": 73.04
+   },
+   {
+    "w": "rozmowy",
+    "start": 73.12,
+    "end": 73.52
+   },
+   {
+    "w": "przygotuje",
+    "start": 73.6,
+    "end": 74.08
+   },
+   {
+    "w": "agendę,",
+    "start": 74.16,
+    "end": 74.88
+   },
+   {
+    "w": "informację",
+    "start": 75.08,
+    "end": 75.52
+   },
+   {
+    "w": "zwrotną",
+    "start": 75.6,
+    "end": 76.08
+   },
+   {
+    "w": "i",
+    "start": 76.24,
+    "end": 76.32
+   },
+   {
+    "w": "szkic",
+    "start": 76.4,
+    "end": 76.72
+   },
+   {
+    "w": "uzasadnienia.",
+    "start": 76.8,
+    "end": 77.76
+   },
+   {
+    "w": "Do",
+    "start": 77.92,
+    "end": 78
+   },
+   {
+    "w": "formularza",
+    "start": 78.08,
+    "end": 78.64
+   },
+   {
+    "w": "trafi",
+    "start": 78.72,
+    "end": 78.96
+   },
+   {
+    "w": "on",
+    "start": 79.04,
+    "end": 79.12
+   },
+   {
+    "w": "dopiero",
+    "start": 79.2,
+    "end": 79.6
+   },
+   {
+    "w": "po",
+    "start": 79.68,
+    "end": 79.76
+   },
+   {
+    "w": "twoim",
+    "start": 79.84,
+    "end": 80.08
+   },
+   {
+    "w": "kliknięciu.",
+    "start": 80.16,
+    "end": 81.12
+   },
+   {
+    "w": "Na",
+    "start": 81.36,
+    "end": 81.44
+   },
+   {
+    "w": "koniec",
+    "start": 81.52,
+    "end": 81.92
+   },
+   {
+    "w": "—",
+    "start": 82.08,
+    "end": 82.12
+   },
+   {
+    "w": "arkusz",
+    "start": 82.16,
+    "end": 82.56
+   },
+   {
+    "w": "w",
+    "start": 82.64,
+    "end": 82.72
+   },
+   {
+    "w": "PDF,",
+    "start": 82.76,
+    "end": 83.48
+   },
+   {
+    "w": "zgodny",
+    "start": 83.6,
+    "end": 84
+   },
+   {
+    "w": "z",
+    "start": 84.08,
+    "end": 84.16
+   },
+   {
+    "w": "urzędowym",
+    "start": 84.24,
+    "end": 84.72
+   },
+   {
+    "w": "wzorem.",
+    "start": 84.8,
+    "end": 85.28
+   }
+  ]
+ },
+ {
+  "id": "08",
+  "start": 85.6,
+  "end": 96.32,
+  "words": [
+   {
+    "w": "Kadry",
+    "start": 85.6,
+    "end": 85.92
+   },
+   {
+    "w": "widzą",
+    "start": 86,
+    "end": 86.24
+   },
+   {
+    "w": "statusy",
+    "start": 86.32,
+    "end": 86.88
+   },
+   {
+    "w": "i",
+    "start": 86.96,
+    "end": 87.04
+   },
+   {
+    "w": "terminy",
+    "start": 87.12,
+    "end": 87.48
+   },
+   {
+    "w": "wszystkich",
+    "start": 87.52,
+    "end": 88.08
+   },
+   {
+    "w": "ocen",
+    "start": 88.16,
+    "end": 88.56
+   },
+   {
+    "w": "i",
+    "start": 88.8,
+    "end": 88.88
+   },
+   {
+    "w": "jednym",
+    "start": 88.96,
+    "end": 89.28
+   },
+   {
+    "w": "kliknięciem",
+    "start": 89.36,
+    "end": 90
+   },
+   {
+    "w": "wysyłają",
+    "start": 90.16,
+    "end": 90.64
+   },
+   {
+    "w": "przypomnienie.",
+    "start": 90.72,
+    "end": 91.64
+   },
+   {
+    "w": "Treści",
+    "start": 91.84,
+    "end": 92.24
+   },
+   {
+    "w": "ocen?",
+    "start": 92.32,
+    "end": 92.88
+   },
+   {
+    "w": "Tych",
+    "start": 93.04,
+    "end": 93.28
+   },
+   {
+    "w": "nie",
+    "start": 93.36,
+    "end": 93.44
+   },
+   {
+    "w": "widzą",
+    "start": 93.52,
+    "end": 93.76
+   },
+   {
+    "w": "wcale.",
+    "start": 93.84,
+    "end": 94.52
+   },
+   {
+    "w": "Tak",
+    "start": 94.72,
+    "end": 94.96
+   },
+   {
+    "w": "działa",
+    "start": 95.04,
+    "end": 95.36
+   },
+   {
+    "w": "RODO.",
+    "start": 95.44,
+    "end": 96.08
+   }
+  ]
+ },
+ {
+  "id": "09",
+  "start": 96.32,
+  "end": 111.18,
+  "words": [
+   {
+    "w": "Role,",
+    "start": 96.32,
+    "end": 96.72
+   },
+   {
+    "w": "wiele",
+    "start": 96.88,
+    "end": 97.12
+   },
+   {
+    "w": "urzędów,",
+    "start": 97.2,
+    "end": 97.84
+   },
+   {
+    "w": "dostępność",
+    "start": 97.92,
+    "end": 98.64
+   },
+   {
+    "w": "dla",
+    "start": 98.72,
+    "end": 98.8
+   },
+   {
+    "w": "każdego.",
+    "start": 98.88,
+    "end": 99.64
+   },
+   {
+    "w": "Dziś",
+    "start": 99.84,
+    "end": 100.24
+   },
+   {
+    "w": "—",
+    "start": 100.4,
+    "end": 100.507
+   },
+   {
+    "w": "płatny,",
+    "start": 100.613,
+    "end": 101
+   },
+   {
+    "w": "szybki",
+    "start": 101.12,
+    "end": 101.44
+   },
+   {
+    "w": "Gemini.",
+    "start": 101.6,
+    "end": 102.24
+   },
+   {
+    "w": "W",
+    "start": 102.4,
+    "end": 102.44
+   },
+   {
+    "w": "urzędzie",
+    "start": 102.48,
+    "end": 102.96
+   },
+   {
+    "w": "—",
+    "start": 103.12,
+    "end": 103.147
+   },
+   {
+    "w": "polski",
+    "start": 103.173,
+    "end": 103.52
+   },
+   {
+    "w": "model,",
+    "start": 103.6,
+    "end": 104.08
+   },
+   {
+    "w": "uruchomiony",
+    "start": 104.16,
+    "end": 104.68
+   },
+   {
+    "w": "lokalnie.",
+    "start": 104.72,
+    "end": 105.56
+   },
+   {
+    "w": "Kompas",
+    "start": 105.76,
+    "end": 106.16
+   },
+   {
+    "w": "Kompetencji:",
+    "start": 106.24,
+    "end": 107.2
+   },
+   {
+    "w": "przepisów",
+    "start": 107.28,
+    "end": 107.84
+   },
+   {
+    "w": "pilnuje",
+    "start": 107.88,
+    "end": 108.24
+   },
+   {
+    "w": "system,",
+    "start": 108.32,
+    "end": 109.04
+   },
+   {
+    "w": "decyzję",
+    "start": 109.12,
+    "end": 109.68
+   },
+   {
+    "w": "podejmuje",
+    "start": 109.84,
+    "end": 110.32
+   },
+   {
+    "w": "człowiek.",
+    "start": 110.4,
+    "end": 111.2
+   }
+  ]
+ }
+]

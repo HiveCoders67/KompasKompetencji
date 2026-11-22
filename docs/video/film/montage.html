@@ -1,0 +1,1448 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8" />
+<title>Kompas Kompetencji — montaż filmu</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:ital,wght@0,400;0,600;1,400;1,600&display=swap" />
+<style>
+  html, body { margin: 0; background: #0c0f14; }
+  canvas { display: block; width: 960px; height: 540px; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+/*
+ * Film compositor (docs/05_film_prezentacja.md § 4.4). Every frame is a pure function of time t, so render.mjs asks
+ * for frames one by one (frameAt) and pipes them into ffmpeg.
+ *
+ * The film has its own look (the app's STYLE_GUIDE does not apply): a dark stage, the app shown as a window on it, and
+ * one distinct device per scene, each fired on a word of the narration (cue times come from the ElevenLabs word
+ * timestamps). Each shot is drawn by its own director function in FX; transitions between scenes differ as well.
+ *
+ * window.FILM = { duration, scenes: [{ id, start, end, caption, sentences: [{ text, start, end }] }],
+ *   shots: [{ fx, scene, img: [names], start, end, trans, cues: { name: t }, hud? }], boxes: { shot: { key: [x,y,w,h] } } }
+ */
+const W = 1920, H = 1080;
+const C = {
+  stage: '#0c0f14', stage2: '#151b27', ink: '#0a0a0a', paper: '#ffffff', text: '#f4f5f7', muted: '#9aa1ad',
+  accent: '#3d6bff', accent2: '#7c9bff', marker: 'rgba(255, 214, 10, 0.55)', red: '#e5484d', green: '#2fb26a', line: 'rgba(255,255,255,.12)',
+};
+const F = { head: '"Archivo Black"', body: '"IBM Plex Sans"', mono: '"IBM Plex Mono"' };
+const STEPS = ['Opis stanowiska', 'Rozpoczęcie', 'Wskaźniki', 'Rozmowa i wynik', 'PDF'];
+const cv = document.getElementById('c');
+const MAIN = cv.getContext('2d');
+let g = MAIN;
+const LAYERS = [0, 1].map(() => Object.assign(document.createElement('canvas'), { width: 1920, height: 1080 }).getContext('2d'));
+let depth = 0;
+/**
+ * Draws `fn` complete on an offscreen layer, then composites the layer with `alpha`. Transitions use it so that a
+ * shot fades as a whole — drawing a shot straight with globalAlpha would let parts it covers (e.g. text hidden by a
+ * reveal mask) shine through the semi-transparent cover.
+ */
+function asLayer(alpha, fn) {
+  if (alpha <= 0) return;
+  const target = g, layer = LAYERS[depth++];
+  layer.setTransform(1, 0, 0, 1, 0, 0);
+  layer.clearRect(0, 0, W, H);
+  layer.globalAlpha = 1;
+  layer.filter = 'none';
+  g = layer;
+  try {
+    fn();
+  } finally {
+    g = target;
+    depth--;
+  }
+  target.save();
+  target.globalAlpha *= alpha;
+  target.drawImage(layer.canvas, 0, 0);
+  target.restore();
+}
+let FILM, IMG = new Map(), BLUR = new Map(), STAGE;
+
+// ── easing & time ────────────────────────────────────────────────────────────────────────────────────────────
+function bezier(x1, y1, x2, y2) {
+  const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx, cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
+  const sx = (t) => ((ax * t + bx) * t + cx) * t, sy = (t) => ((ay * t + by) * t + cy) * t, dx = (t) => (3 * ax * t + 2 * bx) * t + cx;
+  return (x) => {
+    if (x <= 0) return 0;
+    if (x >= 1) return 1;
+    let t = x;
+    for (let i = 0; i < 8; i++) {
+      const e = sx(t) - x, d = dx(t);
+      if (Math.abs(e) < 1e-6 || Math.abs(d) < 1e-6) break;
+      t -= e / d;
+    }
+    return sy(Math.min(1, Math.max(0, t)));
+  };
+}
+const out = bezier(0.16, 1, 0.3, 1); // fast start, long settle
+const io = bezier(0.65, 0, 0.35, 1); // camera
+const back = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : 1 + 2.2 * Math.pow(x - 1, 3) + 1.2 * Math.pow(x - 1, 2)); // small overshoot
+const c01 = (v) => Math.min(1, Math.max(0, v));
+const lerp = (a, b, p) => a + (b - a) * p;
+const P = (t, at, dur, e = out) => e(c01((t - at) / dur));
+const spring = (x, k = 9, damp = 5) => (x <= 0 ? 0 : 1 - Math.exp(-damp * x) * Math.cos(k * x)); // damped settle
+
+// ── primitives ───────────────────────────────────────────────────────────────────────────────────────────────
+function rr(x, y, w, h, r, fresh = true) {
+  if (fresh) g.beginPath();
+  r = Math.min(r, w / 2, h / 2);
+  g.moveTo(x + r, y);
+  g.arcTo(x + w, y, x + w, y + h, r);
+  g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r);
+  g.arcTo(x, y, x + w, y, r);
+  g.closePath();
+}
+function txt(s, x, y, font, color = C.text, align = 'left', base = 'alphabetic') {
+  g.font = font;
+  g.fillStyle = color;
+  g.textAlign = align;
+  g.textBaseline = base;
+  g.fillText(s, x, y);
+}
+function wrap(s, font, maxW) {
+  g.font = font;
+  const lines = [];
+  let line = '';
+  for (const w of s.split(' ')) {
+    const n = line ? line + ' ' + w : w;
+    if (g.measureText(n).width > maxW && line) {
+      lines.push(line);
+      line = w;
+    } else line = n;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+function withAlpha(a, fn) {
+  if (a <= 0) return;
+  g.save();
+  g.globalAlpha *= a;
+  fn();
+  g.restore();
+}
+function around(x, y, s, rot, fn) {
+  g.save();
+  g.translate(x, y);
+  g.rotate(rot);
+  g.scale(s, s);
+  g.translate(-x, -y);
+  fn();
+  g.restore();
+}
+function shadow(blur, dy, a = 0.45) {
+  g.shadowColor = `rgba(0,0,0,${a})`;
+  g.shadowBlur = blur;
+  g.shadowOffsetY = dy;
+}
+function stage() {
+  g.drawImage(STAGE, 0, 0);
+}
+function makeStage() {
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const x = c.getContext('2d');
+  const gr = x.createRadialGradient(W * 0.5, H * 0.35, 100, W * 0.5, H * 0.5, W * 0.75);
+  gr.addColorStop(0, C.stage2);
+  gr.addColorStop(1, C.stage);
+  x.fillStyle = gr;
+  x.fillRect(0, 0, W, H);
+  x.fillStyle = 'rgba(255,255,255,0.045)';
+  for (let i = 24; i < W; i += 48) for (let j = 24; j < H; j += 48) x.fillRect(i, j, 2, 2);
+  return c;
+}
+function blurred(name) {
+  if (!BLUR.has(name)) {
+    const im = IMG.get(name), c = document.createElement('canvas');
+    c.width = im.width;
+    c.height = im.height;
+    const x = c.getContext('2d');
+    x.filter = 'blur(14px)';
+    x.drawImage(im, 0, 0);
+    BLUR.set(name, c);
+  }
+  return BLUR.get(name);
+}
+
+// ── the app window and its camera ────────────────────────────────────────────────────────────────────────────
+// window = screenshot (1920×1080) scaled into a rounded window with a slim title bar, centred on the stage
+const WIN = { y: 132, bar: 30 };
+WIN.h = H - WIN.y - 20 - WIN.bar;
+WIN.w = (WIN.h * 16) / 9;
+WIN.x = (W - WIN.w) / 2;
+WIN.k = WIN.w / 1920;
+WIN.cy = WIN.y + WIN.bar + WIN.h / 2;
+
+/** Camera keyframes: [[t, zoom, cx, cy]] in screenshot px → camera at t (eased between keys). */
+function camAt(t, keys) {
+  if (t <= keys[0][0]) return keys[0].slice(1);
+  for (let i = 1; i < keys.length; i++) {
+    const [t1, ...b] = keys[i];
+    if (t <= t1) {
+      const [t0, ...a] = keys[i - 1];
+      const p = io(c01((t - t0) / (t1 - t0)));
+      return a.map((v, j) => lerp(v, b[j], p));
+    }
+  }
+  return keys.at(-1).slice(1);
+}
+/** Camera framing a box (zoom so the box takes ~`fill` of the window, clamped). */
+function frameBox(b, fill = 0.6, zMax = 2.2, dy = 0) {
+  const [x, y, w, h] = b;
+  const z = Math.max(1, Math.min(zMax, Math.min((1920 * fill) / w, (1080 * fill) / h)));
+  return [z, x + w / 2, y + h / 2 + dy];
+}
+/**
+ * Draws the app window with screenshot `name` through camera [z, cx, cy]. Options: blur (0–1), dim (0–1), alt (a
+ * second screenshot cross-faded in with `altA`). Returns a mapper from screenshot px to frame px.
+ */
+function app(name, cam, o = {}) {
+  let [z, cx, cy] = cam;
+  const vw = 1920 / z, vh = 1080 / z;
+  cx = Math.min(1920 - vw / 2, Math.max(vw / 2, cx));
+  cy = Math.min(1080 - vh / 2, Math.max(vh / 2, cy));
+  const s = WIN.k * z, ox = WIN.x + WIN.w / 2 - cx * s, oy = WIN.cy - cy * s;
+  const map = (x, y) => [ox + x * s, oy + y * s];
+  map.s = s;
+  map.box = (b) => [ox + b[0] * s, oy + b[1] * s, b[2] * s, b[3] * s];
+  if (o.noWindow) return map;
+  g.save();
+  shadow(60, 24, 0.55);
+  rr(WIN.x, WIN.y, WIN.w, WIN.h + WIN.bar, 14);
+  g.fillStyle = '#1d222c';
+  g.fill();
+  g.restore();
+  // title bar: traffic lights + address
+  ['#ff5f57', '#febc2e', '#28c840'].forEach((col, i) => {
+    g.beginPath();
+    g.arc(WIN.x + 22 + i * 20, WIN.y + 15, 6, 0, Math.PI * 2);
+    g.fillStyle = col;
+    g.fill();
+  });
+  txt('kompaskompetencji.web.app', WIN.x + WIN.w / 2, WIN.y + 20, `400 15px ${F.mono}`, '#8b93a1', 'center');
+  g.save();
+  rr(WIN.x, WIN.y + WIN.bar, WIN.w, WIN.h, 0);
+  g.clip();
+  const draw = (img) => g.drawImage(img, cx - vw / 2, cy - vh / 2, vw, vh, WIN.x, WIN.y + WIN.bar, WIN.w, WIN.h);
+  draw(IMG.get(name));
+  if (o.alt && o.altA > 0) withAlpha(o.altA, () => draw(IMG.get(o.alt)));
+  if (o.blur > 0) withAlpha(o.blur, () => draw(blurred(o.altA >= 1 ? o.alt : name)));
+  if (o.dim > 0) {
+    g.fillStyle = `rgba(8,10,14,${o.dim})`;
+    g.fillRect(WIN.x, WIN.y + WIN.bar, WIN.w, WIN.h);
+  }
+  g.restore();
+  return map;
+}
+/** Draws a crop of screenshot `name` (box b, screenshot px) at frame rect r, with shadow (a "lifted" card). */
+function lift(name, b, r, round = 10, sh = 1) {
+  g.save();
+  shadow(50 * sh, 22 * sh, 0.5 * sh);
+  rr(r[0], r[1], r[2], r[3], round);
+  g.fillStyle = '#fff';
+  g.fill();
+  g.restore();
+  g.save();
+  rr(r[0], r[1], r[2], r[3], round);
+  g.clip();
+  g.drawImage(IMG.get(name), b[0], b[1], b[2], b[3], r[0], r[1], r[2], r[3]);
+  g.restore();
+}
+const lerpRect = (a, b, p) => a.map((v, i) => lerp(v, b[i], p));
+const center = (r) => [r[0] + r[2] / 2, r[1] + r[3] / 2];
+
+// ── devices ──────────────────────────────────────────────────────────────────────────────────────────────────
+/** Mouse pointer following keys [[t, x, y]] (frame px); `clicks` = times of clicks (press + ripple). */
+let POINTER_AT = null; // where the pointer was drawn last (the "from-click" transition grows from there)
+function pointer(t, keys, clicks = []) {
+  if (t < keys[0][0]) return;
+  const [x, y] = camAt(t, keys);
+  POINTER_AT = [x, y];
+  for (const ct of clicks) {
+    const p = c01((t - ct) / 0.55);
+    if (p > 0 && p < 1)
+      withAlpha(1 - p, () => {
+        g.beginPath();
+        g.arc(x, y, 14 + 56 * out(p), 0, Math.PI * 2);
+        g.lineWidth = 4;
+        g.strokeStyle = C.accent;
+        g.stroke();
+      });
+  }
+  const press = clicks.some((ct) => t >= ct - 0.06 && t < ct + 0.12) ? 0.82 : 1;
+  const a = P(t, keys[0][0], 0.25);
+  withAlpha(a, () =>
+    around(x, y, press * 1.25, 0, () => {
+      g.beginPath();
+      g.moveTo(x, y);
+      g.lineTo(x, y + 30);
+      g.lineTo(x + 8, y + 23);
+      g.lineTo(x + 14, y + 36);
+      g.lineTo(x + 19, y + 34);
+      g.lineTo(x + 13, y + 21);
+      g.lineTo(x + 23, y + 21);
+      g.closePath();
+      g.save();
+      shadow(10, 4, 0.35);
+      g.fillStyle = '#fff';
+      g.fill();
+      g.restore();
+      g.lineWidth = 2;
+      g.strokeStyle = '#111';
+      g.stroke();
+    }),
+  );
+}
+/** Rubber stamp text slamming onto (x, y). */
+function stamp(t, at, x, y, label, color) {
+  const p = c01((t - at) / 0.32);
+  if (p <= 0) return;
+  const s = lerp(2.6, 1, out(p));
+  withAlpha(Math.min(1, p * 2.5), () =>
+    around(x, y, s, -0.12, () => {
+      g.font = `72px ${F.head}`;
+      const w = g.measureText(label).width + 70;
+      rr(x - w / 2, y - 58, w, 116, 14);
+      g.lineWidth = 9;
+      g.strokeStyle = color;
+      g.stroke();
+      rr(x - w / 2 + 14, y - 44, w - 28, 88, 8);
+      g.lineWidth = 3;
+      g.stroke();
+      txt(label, x, y + 4, `72px ${F.head}`, color, 'center', 'middle');
+    }),
+  );
+}
+/** Screen shake offset after an impact at `at`. */
+const shake = (t, at, amp = 16) => (t < at || t > at + 0.45 ? [0, 0] : [Math.sin((t - at) * 90) * amp * (1 - (t - at) / 0.45), Math.cos((t - at) * 70) * amp * 0.5 * (1 - (t - at) / 0.45)]);
+/** Speech-bubble card used for typed questions. */
+function bubble(r, text, chars, font = `400 34px ${F.body}`) {
+  g.save();
+  shadow(40, 16, 0.5);
+  rr(r[0], r[1], r[2], r[3], 22);
+  g.fillStyle = '#fff';
+  g.fill();
+  g.restore();
+  const lines = wrap(text, font, r[2] - 80);
+  let left = chars;
+  lines.forEach((l, i) => {
+    const part = l.slice(0, Math.max(0, left));
+    left -= l.length + 1;
+    txt(part, r[0] + 40, r[1] + 62 + i * 48, font, '#111');
+    if (left < 0 && left > -l.length - 1 && part.length < l.length) {
+      g.font = font;
+      const cw = g.measureText(part).width;
+      g.fillStyle = C.accent;
+      g.fillRect(r[0] + 42 + cw, r[1] + 32 + i * 48, 4, 40);
+    }
+  });
+}
+/** Tag (pill) with optional icon text. */
+function tag(x, y, label, bg, fg = '#fff', font = `600 26px ${F.body}`, align = 'left') {
+  g.font = font;
+  const w = g.measureText(label).width + 44, h = 52;
+  const x0 = align === 'center' ? x - w / 2 : align === 'right' ? x - w : x;
+  g.save();
+  shadow(24, 10, 0.4);
+  rr(x0, y, w, h, h / 2);
+  g.fillStyle = bg;
+  g.fill();
+  g.restore();
+  txt(label, x0 + 22, y + h / 2 + 1, font, fg, 'left', 'middle');
+  return [x0, y, w, h];
+}
+function compass(x, y, r, needle, a = 1) {
+  withAlpha(a, () => {
+    g.save();
+    g.beginPath();
+    g.arc(x, y, r, 0, Math.PI * 2);
+    g.lineWidth = r * 0.06;
+    g.strokeStyle = 'rgba(255,255,255,.85)';
+    g.stroke();
+    for (let i = 0; i < 36; i++) {
+      const an = (i / 36) * Math.PI * 2, l = i % 9 === 0 ? 0.18 : 0.08;
+      g.beginPath();
+      g.moveTo(x + Math.cos(an) * r * 0.86, y + Math.sin(an) * r * 0.86);
+      g.lineTo(x + Math.cos(an) * r * (0.86 - l), y + Math.sin(an) * r * (0.86 - l));
+      g.lineWidth = i % 9 === 0 ? r * 0.035 : r * 0.015;
+      g.strokeStyle = 'rgba(255,255,255,.6)';
+      g.stroke();
+    }
+    txt('N', x, y - r * 0.55, `${Math.round(r * 0.2)}px ${F.head}`, C.text, 'center', 'middle');
+    g.translate(x, y);
+    g.rotate(needle);
+    g.beginPath();
+    g.moveTo(0, -r * 0.72);
+    g.lineTo(r * 0.1, 0);
+    g.lineTo(-r * 0.1, 0);
+    g.closePath();
+    g.fillStyle = C.accent;
+    g.fill();
+    g.beginPath();
+    g.moveTo(0, r * 0.72);
+    g.lineTo(r * 0.1, 0);
+    g.lineTo(-r * 0.1, 0);
+    g.closePath();
+    g.fillStyle = 'rgba(255,255,255,.75)';
+    g.fill();
+    g.beginPath();
+    g.arc(0, 0, r * 0.07, 0, Math.PI * 2);
+    g.fillStyle = '#fff';
+    g.fill();
+    g.restore();
+  });
+}
+function logo(x, y, size, a = 1) {
+  withAlpha(a, () => {
+    txt('Kompas', x, y, `${size}px ${F.head}`, C.text);
+    txt('Kompetencji', x, y + size * 0.98, `${size}px ${F.head}`, C.text);
+    g.font = `${size}px ${F.head}`;
+    const w = g.measureText('Kompetencji').width;
+    g.fillStyle = C.accent;
+    g.fillRect(x + w + size * 0.08, y + size * 0.98 - size * 0.2, size * 0.2, size * 0.2);
+  });
+}
+/** A paper card (sources pile, architecture layers). */
+function paper(x, y, w, h, title, sub, o = {}) {
+  g.save();
+  shadow(30, 12, 0.45);
+  rr(x, y, w, h, 12);
+  g.fillStyle = o.bg ?? '#fbfbf8';
+  g.fill();
+  g.restore();
+  if (o.strip) {
+    g.save();
+    rr(x, y, w, h, 12);
+    g.clip();
+    g.fillStyle = o.strip;
+    g.fillRect(x, y, 10, h);
+    g.restore();
+  }
+  txt(sub, x + 34, y + h * 0.4, `400 21px ${F.body}`, o.subColor ?? '#6b6b70');
+  txt(title, x + 34, y + h * 0.4 + 42, o.font ?? `32px ${F.head}`, o.color ?? '#0a0a0a');
+}
+
+// ── shots ────────────────────────────────────────────────────────────────────────────────────────────────────
+const FX = {
+  /* 1 — compass settles, title; sources drop onto a pile on the narrator's words; "na wyczucie" → the needle is lost */
+  intro(t, s) {
+    stage();
+    const c = s.cues, lt = t - s.start;
+    const toCorner = P(t, c.ustawa - 0.45, 0.8, io);
+    const lost = P(t, c.lost, 0.8);
+    // compass + title block, later shrinks to the top-left corner
+    const needle = lost > 0 ? Math.sin((t - c.lost) * 5.3) * 2.4 + Math.sin((t - c.lost) * 2.1) * 1.3 : (-2.6 * (1 - spring(lt * 0.9, 7, 3.2)));
+    const big = { x: W / 2, y: 330, r: 150 }, small = { x: 132, y: 128, r: 58 };
+    const cx = lerp(big.x, small.x, toCorner), cy = lerp(big.y, small.y, toCorner), r = lerp(big.r, small.r, toCorner);
+    compass(cx, cy, r, needle, P(t, s.start, 0.6) * (1 - lost));
+    withAlpha(P(t, s.start + 0.45, 0.7) * (1 - toCorner), () => {
+      const y = 620 + (1 - P(t, s.start + 0.45, 0.7)) * 30;
+      txt('Kompas Kompetencji', W / 2, y, `110px ${F.head}`, C.text, 'center');
+      g.font = `110px ${F.head}`;
+      const w = g.measureText('Kompas Kompetencji').width;
+      g.fillStyle = C.accent;
+      g.fillRect(W / 2 + w / 2 + 10, y - 22, 22, 22);
+    });
+    withAlpha(P(t, s.start + 0.9, 0.7) * (1 - toCorner), () => txt('HackNation 2026 · Ministerstwo Cyfryzacji', W / 2, 712, `400 34px ${F.body}`, C.muted, 'center'));
+    withAlpha(toCorner * (1 - lost), () => logo(214, 116, 40));
+    // the pile
+    // [at, title, sub, rotation, x, y] — a messy pile: every card lands somewhere else, partly covering the others
+    const cards = [
+      [c.ustawa, 'Ustawa o służbie cywilnej', 'art. 81–83 · 36–38', -0.07, 470, 300],
+      [c.dwa, 'Rozporządzenie PRM 2016', 'ocena okresowa · arkusze B i C', 0.06, 1000, 260],
+      [c.dwa + 0.35, 'Rozporządzenie PRM 2015', 'pierwsza ocena · arkusz A', -0.04, 1080, 470],
+      [c.arkusze, 'Arkusze oceny', 'urzędowe wzory B · C · pierwszej oceny', 0.08, 400, 520],
+      [c.arkusze + 0.3, 'Poradniki KPRM', 'pierwsza ocena · ocena okresowa', -0.1, 760, 640],
+      [c.terminy, 'Terminy ustawowe', '21 dni · 8.–11. miesiąc · 24 miesiące', 0.05, 640, 410],
+    ];
+    const blurPile = lost;
+    g.save();
+    if (blurPile > 0) g.filter = `blur(${blurPile * 9}px)`;
+    g.globalAlpha = 1 - lost * 0.55;
+    cards.forEach(([at, title, sub, rot, x, y1], i) => {
+      const p = c01((t - at) / 0.55);
+      if (p <= 0) return;
+      const y = lerp(-300, y1, back(p));
+      around(x + 330, y + 85, 1, rot * (1 + (1 - p) * 3), () => paper(x, y, 660, 170, title, sub, { strip: i === 5 ? C.red : C.accent }));
+    });
+    g.restore();
+    // lost: big spinning compass over the blurred pile
+    if (lost > 0) {
+      compass(W / 2, 500, 170 * lerp(0.6, 1, lost), Math.sin((t - c.lost) * 4.1) * 3 + (t - c.lost) * 2.5, lost);
+      withAlpha(P(t, c.lost + 2, 0.5), () => txt('na wyczucie?', W / 2, 770, `italic 600 54px ${F.body}`, C.text, 'center'));
+    }
+  },
+
+  /* 2a — jury entry: the pointer clicks "Przełożony" */
+  jury(t, s) {
+    stage();
+    const b = box(s, 'btn'), panel = box(s, 'panel');
+    const cam = camAt(t, [[s.start, 1, 960, 540], [s.start + 1.2, ...frameBox(panel, 0.7, 1.6)]]);
+    const m = app('s2-jury', cam);
+    const [bx, by] = m(b[0] + b[2] * 0.3, b[1] + b[3] / 2);
+    pointer(t, [[s.start + 0.6, W - 300, H + 60], [s.cues.click - 0.15, bx, by]], [s.cues.click]);
+  },
+
+  /* 2b — dashboard grows out of the clicked button; the tour card steps forward; the slogan in kinetic type */
+  tour(t, s) {
+    stage();
+    const card = box(s, 'card');
+    const words = P(t, s.cues.words - 0.2, 0.6);
+    const m = app('s2-tour', [1.05, 960, 520], { blur: words, dim: words * 0.55 });
+    const lp = P(t, s.cues.lift, 0.7);
+    if (lp > 0 && words < 1) {
+      const r0 = m.box(card), c0 = center(r0), sc = lerp(1, 1.45, lp);
+      const r1 = [c0[0] - (r0[2] * sc) / 2, c0[1] - (r0[3] * sc) / 2 - 20 * lp, r0[2] * sc, r0[3] * sc];
+      withAlpha(1 - words, () => lift('s2-tour', card, r1, 14, lp));
+    }
+    // kinetic: three lines rising out of a mask
+    const lines = [
+      [s.cues.w1, 'podpowiada', `96px ${F.head}`, C.text],
+      [s.cues.w2, 'pilnuje przepisów', `96px ${F.head}`, C.text],
+      [s.cues.w3, 'decyduje człowiek', `120px ${F.head}`, C.accent2],
+    ];
+    withAlpha(words, () => txt('SYSTEM', W / 2, 250, `600 34px ${F.mono}`, C.muted, 'center'));
+    lines.forEach(([at, label, font, col], i) => {
+      const p = P(t, at - 0.15, 0.6);
+      if (p <= 0) return;
+      const y = 400 + i * 150;
+      g.save();
+      g.beginPath();
+      g.rect(0, y - 120, W, 150);
+      g.clip();
+      txt(label, W / 2, y + (1 - p) * 130, font, col, 'center');
+      g.restore();
+      if (i === 2) {
+        g.font = font;
+        const w = g.measureText(label).width * P(t, at + 0.25, 0.6);
+        g.fillStyle = C.accent;
+        g.fillRect(W / 2 - w / 2, y + 26, w, 10);
+      }
+    });
+  },
+
+  /* 3a — the OSP file drops in; a scanner beam turns the blurred page into the parsed result */
+  scan(t, s) {
+    stage();
+    const card = box(s, 'card'), up = box(s, 'upload');
+    const drop = s.cues.drop, scanAt = drop + 0.55, scanDur = 1.5;
+    const cam = camAt(t, [[s.start, 1, 960, 540], [scanAt + scanDur, 1, 960, 540], [s.end, 1.25, 1000, 520]]);
+    const m = app('s3-osp-parsed', cam);
+    const sp = c01((t - scanAt) / scanDur);
+    const r = m.box(card);
+    const beamY = lerp(r[1], r[1] + r[3], io(sp));
+    // below the beam the page is still "unread": blurred + veiled
+    if (sp < 1) {
+      g.save();
+      g.beginPath();
+      g.rect(WIN.x, Math.max(WIN.y + WIN.bar, beamY), WIN.w, WIN.y + WIN.bar + WIN.h - beamY);
+      g.clip();
+      const [z, cx, cy] = cam, vw = 1920 / z, vh = 1080 / z;
+      g.drawImage(blurred('s3-osp-parsed'), cx - vw / 2, cy - vh / 2, vw, vh, WIN.x, WIN.y + WIN.bar, WIN.w, WIN.h);
+      g.fillStyle = 'rgba(240,242,248,.55)';
+      g.fillRect(WIN.x, WIN.y + WIN.bar, WIN.w, WIN.h);
+      g.restore();
+    }
+    if (sp > 0 && sp < 1) {
+      const gr = g.createLinearGradient(0, beamY - 80, 0, beamY + 4);
+      gr.addColorStop(0, 'rgba(61,107,255,0)');
+      gr.addColorStop(1, 'rgba(61,107,255,.35)');
+      g.fillStyle = gr;
+      g.fillRect(WIN.x, beamY - 80, WIN.w, 84);
+      g.save();
+      g.shadowColor = C.accent;
+      g.shadowBlur = 30;
+      g.fillStyle = '#9db4ff';
+      g.fillRect(WIN.x, beamY - 2, WIN.w, 4);
+      g.restore();
+    }
+    // the file icon floats, then falls into the upload button
+    const fp = c01((t - drop) / 0.55);
+    if (fp < 1) {
+      const [ux, uy] = center(m.box(up));
+      const bob = Math.sin((t - s.start) * 3) * 8;
+      const x = lerp(W / 2, ux, io(fp)), y = lerp(500 + bob, uy, io(fp)), sc = lerp(1, 0.25, io(fp));
+      withAlpha(P(t, s.start + 0.2, 0.5) * (1 - fp * fp), () =>
+        around(x, y, sc, lerp(-0.06, 0, fp), () => {
+          g.save();
+          shadow(40, 18, 0.5);
+          rr(x - 120, y - 150, 240, 300, 18);
+          g.fillStyle = '#fff';
+          g.fill();
+          g.restore();
+          rr(x - 120, y + 40, 240, 70, 0);
+          g.fillStyle = '#2b579a';
+          g.fill();
+          txt('DOCX', x, y + 76, `34px ${F.head}`, '#fff', 'center', 'middle');
+          for (let i = 0; i < 5; i++) {
+            g.fillStyle = '#d9dde6';
+            g.fillRect(x - 84, y - 110 + i * 28, i % 2 ? 130 : 168, 12);
+          }
+          txt('OSP_starszy-specjalista.docx', x, y + 190, `600 26px ${F.body}`, C.text, 'center');
+        }),
+      );
+    }
+  },
+
+  /* 3b — the sheet rule; the "Arkusz C" label pops off and flies into the process indicator */
+  sheet(t, s) {
+    stage();
+    const rule = box(s, 'rule'), sb = box(s, 'sheet'), sheet = [sb[0], sb[1], 250, sb[3]];
+    const cam = camAt(t, [[s.start, 1.2, ...center(rule)], [s.cues.fly, ...frameBox([rule[0], rule[1], rule[2], sheet[1] + sheet[3] - rule[1]], 0.85, 1.6)]]);
+    const m = app('s3-osp-form', cam);
+    const fp = c01((t - s.cues.fly) / 1.0);
+    if (fp > 0) {
+      const r0 = m.box(sheet), r1 = HUD_SHEET_SLOT();
+      const pop = P(t, s.cues.fly, 0.35, back);
+      const r = fp < 0.35 ? (() => { const c0 = center(r0), k = lerp(1, 1.6, pop); return [c0[0] - (r0[2] * k) / 2, c0[1] - (r0[3] * k) / 2 - 30 * pop, r0[2] * k, r0[3] * k]; })()
+        : (() => { const c0 = center(r0), k = 1.6, a = [c0[0] - (r0[2] * k) / 2, c0[1] - (r0[3] * k) / 2 - 30, r0[2] * k, r0[3] * k]; return lerpRect(a, r1, io((fp - 0.35) / 0.65)); })();
+      withAlpha(fp < 0.95 ? 1 : 1 - (fp - 0.95) / 0.05, () => lift('s3-osp-form', sheet, r, 10, 1));
+    }
+  },
+
+  /* 3c — AI-suggested extra criterion; the pointer adds it, a check badge confirms */
+  aiCriteria(t, s) {
+    stage();
+    const card = box(s, 'card'), add = box(s, 'add');
+    const cam = camAt(t, [[s.start, 1, 960, 540], [s.start + 1.4, ...frameBox(card, 0.8, 1.5)]]);
+    const m = app('s3-osp-ai', cam);
+    const [ax, ay] = center(m.box(add));
+    pointer(t, [[s.start + 1.2, ax - 360, ay + 220], [s.cues.click - 0.15, ax, ay]], [s.cues.click]);
+    const bp = P(t, s.cues.click + 0.15, 0.5, back);
+    if (bp > 0) {
+      const r = m.box(card);
+      tag(r[0] + r[2] - 330, r[1] - 26, '✓  dodane do kryteriów', C.green, '#fff', `600 24px ${F.body}`);
+      g.globalAlpha = 1;
+    }
+  },
+
+  /* 4a — a loupe glides over the behaviour descriptions; the camera moves to the suggestion; the pointer picks 7 */
+  indicators(t, s) {
+    stage();
+    const ind = box(s, 'indicators'), one = box(s, 'indicator'), sc = box(s, 'score'), pill = box(s, 'pill');
+    const c = s.cues;
+    const cam = camAt(t, [[s.start, 1, 960, 540], [c.loupe, 1.12, ...center(ind)], [c.pan, 1.12, ...center(ind)], [c.pan + 1.1, ...frameBox(sc, 0.75, 1.5, -60)]]);
+    const after = t >= c.click;
+    const m = app(after ? 's4-score' : 's4-score-pre', cam);
+    // loupe
+    const lp = c01((t - c.loupe) / 2.2), la = P(t, c.loupe, 0.3) * (1 - P(t, c.pan - 0.3, 0.4));
+    if (la > 0) {
+      const r = m.box(ind), [tx, ty] = center(m.box(one));
+      const path = [[0, r[0] + 120, r[1] + r[3] / 2], [0.6, r[0] + r[2] * 0.5, r[1] + r[3] * 0.45], [1, tx, ty]];
+      const [lx, ly] = camAt(lp, path);
+      const R = 150, mag = 1.9;
+      withAlpha(la, () => {
+        g.save();
+        g.beginPath();
+        g.arc(lx, ly, R, 0, Math.PI * 2);
+        g.clip();
+        g.fillStyle = '#fff';
+        g.fillRect(lx - R, ly - R, 2 * R, 2 * R);
+        // source point under the loupe in screenshot px
+        const sx = (lx - (m(0, 0)[0])) / m.s, sy = (ly - (m(0, 0)[1])) / m.s, half = R / (m.s * mag);
+        g.drawImage(IMG.get('s4-score-pre'), sx - half, sy - half, half * 2, half * 2, lx - R, ly - R, 2 * R, 2 * R);
+        g.restore();
+        g.save();
+        shadow(30, 10, 0.5);
+        g.beginPath();
+        g.arc(lx, ly, R, 0, Math.PI * 2);
+        g.lineWidth = 12;
+        g.strokeStyle = '#1b1f27';
+        g.stroke();
+        g.beginPath();
+        g.moveTo(lx + R * 0.74, ly + R * 0.74);
+        g.lineTo(lx + R * 1.3, ly + R * 1.3);
+        g.lineWidth = 26;
+        g.lineCap = 'round';
+        g.stroke();
+        g.restore();
+      });
+    }
+    // pointer → "7"
+    const [px, py] = center(m.box(pill));
+    pointer(t, [[c.pan + 0.4, px + 300, py + 260], [c.click - 0.15, px, py]], [c.click]);
+    // hand-drawn note after the decision
+    const np = P(t, c.click + 0.2, 0.8);
+    if (np > 0) {
+      const [qx, qy] = [px - 40, py + 70];
+      g.save();
+      g.lineWidth = 5;
+      g.lineCap = 'round';
+      g.strokeStyle = C.accent;
+      g.beginPath();
+      const ex = qx - 260, ey = qy + 120;
+      g.moveTo(ex + 20, ey - 30);
+      g.quadraticCurveTo(lerp(ex, qx, 0.3), lerp(ey, qy, 0.1) + 30, lerp(ex + 20, qx, np), lerp(ey - 30, qy, np));
+      g.stroke();
+      g.restore();
+      withAlpha(np, () => tag(ex - 300, ey - 20, 'decyzja przełożonego', C.accent, '#fff', `italic 600 30px ${F.body}`));
+    }
+  },
+
+  /* 4b — the statutory deadline lifts off the page next to a flipping calendar sheet */
+  deadline(t, s) {
+    stage();
+    const d = box(s, 'deadline');
+    const lp = P(t, s.cues.lift, 0.8);
+    const m = app('s4-deadline', camAt(t, [[s.start, 1, 960, 540], [s.cues.lift, ...frameBox(d, 0.55, 1.6)]]), { dim: lp * 0.55, blur: lp * 0.8 });
+    if (lp > 0) {
+      const r0 = m.box(d), k = lerp(1, 1.25, lp), c0 = center(r0);
+      const r = [c0[0] - (r0[2] * k) / 2 + 120 * lp, c0[1] - (r0[3] * k) / 2, r0[2] * k, r0[3] * k];
+      lift('s4-deadline', d, r, 12, lp);
+      // calendar sheet: the page flips from 21.11.2026 ("today") to 15.01.2027
+      const cx = r[0] - 210, cy = c0[1] - 140;
+      const fp = c01((t - s.cues.lift - 0.4) / 0.7);
+      withAlpha(lp, () => {
+        g.save();
+        shadow(40, 16, 0.5);
+        rr(cx - 150, cy, 300, 300, 18);
+        g.fillStyle = '#fff';
+        g.fill();
+        g.restore();
+        const top = fp < 0.5 ? ['LIS 2026', '21'] : ['STY 2027', '15'];
+        g.save();
+        rr(cx - 150, cy, 300, 300, 18);
+        g.clip();
+        g.fillStyle = C.red;
+        g.fillRect(cx - 150, cy, 300, 76);
+        txt(top[0], cx, cy + 40, `600 32px ${F.mono}`, '#fff', 'center', 'middle');
+        const sy = fp < 0.5 ? 1 - fp * 2 : (fp - 0.5) * 2;
+        around(cx, cy + 76, 1, 0, () => {
+          g.translate(cx, cy + 76);
+          g.scale(1, Math.max(0.02, sy));
+          g.translate(-cx, -(cy + 76));
+          txt(top[1], cx, cy + 190, `150px ${F.head}`, '#111', 'center', 'middle');
+        });
+        g.restore();
+      });
+    }
+  },
+
+  /* 5a — the score board: eight partial scores, the average; Komunikacja flips 7 → 1, the stamp falls */
+  formula(t, s) {
+    const c = s.cues;
+    const [sx, sy] = shake(t, c.stamp + 0.28);
+    g.save();
+    g.translate(sx, sy);
+    stage();
+    app('s5-result-positive', [1.1, 960, 560], { blur: 1, dim: 0.62 });
+    const names = ['Wiedza i rozwój', 'Rzetelność', 'Organizacja pracy', 'Współpraca', 'Komunikacja', 'Myślenie analityczne', 'Kreatywność', 'Decyzje'];
+    const vals = [7, 5, 7, 7, 7, 7, 5, 7];
+    const tw = 186, gap = 18, x0 = (W - (tw * 8 + gap * 7)) / 2, y0 = 300;
+    withAlpha(P(t, s.start, 0.5), () => txt('Wynik oceny okresowej — liczy kod', W / 2, 250, `54px ${F.head}`, C.text, 'center'));
+    const flip = c01((t - c.flip) / 0.5);
+    names.forEach((n, i) => {
+      const p = P(t, c.fill + i * 0.12, 0.5, back);
+      if (p <= 0) return;
+      const x = x0 + i * (tw + gap), y = y0 + (1 - p) * 60;
+      const isK = i === 4;
+      const red = isK && flip >= 0.5;
+      const pulse = isK && t > c.one ? 0.5 + 0.5 * Math.sin((t - c.one) * 9) : 0;
+      withAlpha(Math.min(1, p), () => {
+        g.save();
+        shadow(24, 10, 0.4);
+        rr(x, y, tw, 230, 16);
+        g.fillStyle = red ? '#2a1416' : '#161b25';
+        g.fill();
+        g.restore();
+        rr(x, y, tw, 230, 16);
+        g.lineWidth = red ? 3 + pulse * 5 : 1.5;
+        g.strokeStyle = red ? C.red : C.line;
+        g.stroke();
+        // split-flap digit
+        const v = isK ? (flip < 0.5 ? 7 : 1) : vals[i];
+        const fy = isK && flip > 0 && flip < 1 ? Math.abs(Math.cos(flip * Math.PI)) : 1;
+        around(x + tw / 2, y + 100, 1, 0, () => {
+          g.translate(x + tw / 2, y + 100);
+          g.scale(1, fy);
+          g.translate(-(x + tw / 2), -(y + 100));
+          txt(String(v), x + tw / 2, y + 104, `110px ${F.head}`, red ? C.red : C.text, 'center', 'middle');
+        });
+        g.fillStyle = 'rgba(255,255,255,.08)';
+        g.fillRect(x + 10, y + 100, tw - 20, 2);
+        wrap(n, `600 21px ${F.body}`, tw - 24).forEach((l, j) => txt(l, x + tw / 2, y + 186 + j * 24, `600 21px ${F.body}`, C.muted, 'center'));
+      });
+    });
+    // sum and average (roll with the flip)
+    const fa = P(t, c.fill + 1.2, 0.6);
+    const sum = Math.round(lerp(52, 46, io(c01((t - c.flip - 0.25) / 0.8))));
+    const avg = (sum / 8).toFixed(2).replace('.', ',');
+    withAlpha(fa, () => {
+      txt(`suma ${sum}  ÷  8  =`, W / 2 - 140, 690, `600 54px ${F.mono}`, C.muted, 'right');
+      txt(avg, W / 2 - 110, 696, `120px ${F.head}`, C.text, 'left');
+    });
+    // verdict
+    const neg = P(t, c.stamp, 0.2);
+    withAlpha(fa * (1 - neg), () => tag(W / 2 + 250, 638, 'POZYTYWNA', C.green, '#fff', `600 34px ${F.body}`));
+    // the rule appears when the "1" is called out
+    withAlpha(P(t, c.one, 0.5), () => txt('§ 11 rozp. 2016:  choć jedna ocena „1” ⇒ ocena negatywna, niezależnie od średniej', W / 2, 820, `400 32px ${F.body}`, '#ffb4b6', 'center'));
+    stamp(t, c.stamp, W / 2 + 470, 664, 'NEGATYWNA', C.red);
+    g.restore();
+  },
+
+  /* 5b — the real screen with the same result */
+  result(t, s) {
+    stage();
+    const r = box(s, 'result');
+    const lp = P(t, s.cues.lift, 0.7);
+    const m = app('s5-result-negative', camAt(t, [[s.start, 1.3, ...center(r)], [s.end, ...frameBox(r, 0.75, 1.7)]]), { dim: lp * 0.45 });
+    if (lp > 0) {
+      const r0 = m.box(r), k = lerp(1, 1.12, lp), c0 = center(r0);
+      lift('s5-result-negative', r, [c0[0] - (r0[2] * k) / 2, c0[1] - (r0[3] * k) / 2 - 20 * lp, r0[2] * k, r0[3] * k], 12, lp);
+    }
+  },
+
+  /* 6a — the question types itself in a bubble, then lands where it belongs; a highlighter marks the citation */
+  ask(t, s) {
+    stage();
+    const q = box(s, 'q'), cite = box(s, 'cite'), ans = box(s, 'answer');
+    const c = s.cues;
+    const land = c01((t - c.land) / 0.7);
+    const cam = camAt(t, [[s.start, 1.15, ...center(q)], [c.land + 0.7, 1.15, ...center(q)], [c.mark - 0.3, ...frameBox(ans, 0.8, 1.45)]]);
+    const m = app('s6-answer', cam, { blur: 1 - io(land), dim: (1 - io(land)) * 0.5 });
+    const text = 'Nowy pracownik został zwolniony ze służby przygotowawczej przez Dyrektora Generalnego. Czy musi zdawać egzamin?';
+    if (land < 1) {
+      const chars = Math.floor(c01((t - s.start - 0.2) / 1.3) * text.length);
+      const from = [W / 2 - 560, 380, 1120, 200], to = m.box(q);
+      const r = lerpRect(from, to, io(land));
+      withAlpha(1 - io(land) * 0.9, () => bubble(r, text, chars));
+    }
+    // highlighter over the citation
+    const hp = c01((t - c.mark) / 0.9);
+    if (hp > 0) {
+      const r = m.box(cite);
+      g.save();
+      g.globalCompositeOperation = 'multiply';
+      g.fillStyle = C.marker;
+      const w = r[2] * io(hp);
+      g.beginPath();
+      g.moveTo(r[0] - 6, r[1] + 4);
+      g.lineTo(r[0] - 6 + w, r[1] + 2);
+      g.lineTo(r[0] - 2 + w, r[1] + r[3] - 2);
+      g.lineTo(r[0] - 2, r[1] + r[3]);
+      g.closePath();
+      g.fill();
+      g.restore();
+      withAlpha(P(t, c.mark + 0.8, 0.4), () => tag(r[0] + r[2] - 420, r[1] + r[3] + 16, '✓  cytat sprawdzony w kodzie', '#111', '#fff', `600 24px ${F.body}`));
+    }
+  },
+
+  /* 6b — sources searched one by one (no hits), the refusal shakes its head */
+  refuse(t, s) {
+    stage();
+    const q = box(s, 'q'), ref = box(s, 'refusal');
+    const c = s.cues;
+    const m = app('s6-refusal', camAt(t, [[s.start, ...frameBox([q[0], q[1], q[2], ref[1] + ref[3] - q[1]], 0.85, 1.5)]]), { dim: P(t, c.search, 0.4) * 0.5 * (1 - P(t, c.shake, 0.4)) });
+    const srcs = ['Ustawa', 'Rozp. 2015', 'Rozp. 2016', 'Poradniki KPRM', 'Model kompetencji'];
+    const sa = P(t, c.search, 0.4) * (1 - P(t, c.shake + 0.6, 0.5));
+    if (sa > 0) {
+      const r = m.box(ref), y = r[1] - 92;
+      let x = W / 2 - 610;
+      withAlpha(sa, () =>
+        srcs.forEach((n, i) => {
+          const at = c.search + 0.25 + i * 0.32, hit = t > at;
+          const b = tag(x, y, (hit ? '✕  ' : '') + n, hit ? '#3a1d20' : '#1b2130', hit ? '#ffb4b6' : '#fff', `600 24px ${F.body}`);
+          x += b[2] + 14;
+        }),
+      );
+    }
+    const sp = c01((t - c.shake) / 0.9);
+    if (sp > 0) {
+      const r0 = m.box(ref), k = lerp(1, 1.18, out(Math.min(1, sp * 2))), c0 = center(r0);
+      const dx = Math.sin(sp * Math.PI * 6) * 26 * (1 - sp);
+      lift('s6-refusal', ref, [c0[0] - (r0[2] * k) / 2 + dx, c0[1] - (r0[3] * k) / 2, r0[2] * k, r0[3] * k], 12, Math.min(1, sp * 3));
+    }
+  },
+
+  /* 7a — interview assistant: "Szkic uzasadnienia" → generating shimmer → the draft → "Wstaw do formularza" */
+  draft(t, s) {
+    stage();
+    const c = s.cues;
+    const win = FILM.boxes['s7-open'].window, chip = FILM.boxes['s7-open'].chip, ins = FILM.boxes['s7-draft'].insert;
+    const gen = c01((t - c.chip - 0.2) / 0.9);
+    const cam = camAt(t, [[s.start, 1, 960, 540], [s.start + 1.2, ...frameBox(win, 0.85, 1.9)], [c.insert - 0.9, ...frameBox(win, 0.85, 1.9)], [c.insert - 0.2, ...frameBox([ins[0] - 300, ins[1] - 200, ins[2] + 400, ins[3] + 300], 0.8, 2.2)]]);
+    const m = app('s7-open', cam, { alt: 's7-draft', altA: io(c01((gen - 0.5) / 0.5)) });
+    if (gen > 0 && gen < 1) {
+      // shimmer over the assistant window while the model writes
+      const r = m.box(win), x = lerp(r[0] - 300, r[0] + r[2], gen);
+      g.save();
+      rr(r[0], r[1], r[2], r[3], 12);
+      g.clip();
+      const gr = g.createLinearGradient(x, 0, x + 300, 0);
+      gr.addColorStop(0, 'rgba(61,107,255,0)');
+      gr.addColorStop(0.5, 'rgba(61,107,255,.28)');
+      gr.addColorStop(1, 'rgba(61,107,255,0)');
+      g.fillStyle = gr;
+      g.fillRect(x, r[1], 300, r[3]);
+      g.restore();
+      withAlpha(Math.sin(gen * Math.PI), () => tag(r[0] + r[2] / 2, r[1] - 70, '✦  AI pisze szkic…', C.accent, '#fff', `600 26px ${F.body}`, 'center'));
+    }
+    const [cx, cy] = center(m.box(chip));
+    const [ix, iy] = center(m.box(ins));
+    pointer(t, [[s.start + 0.8, W - 200, H - 100], [c.chip - 0.15, cx, cy], [c.chip + 1.3, cx, cy], [c.insert - 0.15, ix, iy]], [c.chip, c.insert]);
+  },
+
+  /* 7b — the text flows into the form line by line, then the "AI draft" badge pops */
+  inserted(t, s) {
+    stage();
+    const f = box(s, 'field'), badge = box(s, 'badge');
+    const m = app('s7-inserted', camAt(t, [[s.start, ...frameBox(f, 0.9, 1.6, -40)]]));
+    // the text fades in under a soft edge moving down the whole field (no per-line mask: it never matches the
+    // real line height and cut lines in half)
+    const r = m.box(f), p = io(c01((t - s.start - 0.2) / 1.6));
+    const pad = 9 * m.s, inner = [r[0] + pad, r[1] + pad, r[2] - 2 * pad, r[3] - 2 * pad];
+    if (p < 1) {
+      const soft = 90, edge = lerp(inner[1] - soft, inner[1] + inner[3], p);
+      g.save();
+      rr(inner[0], inner[1], inner[2], inner[3], 4);
+      g.clip();
+      const gr = g.createLinearGradient(0, edge, 0, edge + soft);
+      gr.addColorStop(0, 'rgba(255,255,255,0)');
+      gr.addColorStop(1, 'rgba(255,255,255,1)');
+      g.fillStyle = gr;
+      g.fillRect(inner[0], edge, inner[2], soft);
+      g.fillStyle = '#fff';
+      g.fillRect(inner[0], edge + soft, inner[2], Math.max(0, inner[1] + inner[3] - edge - soft));
+      g.restore();
+    }
+    if (badge) {
+      const bp = P(t, s.start + 1.4, 0.5, back);
+      if (bp > 0) {
+        const r0 = m.box(badge), k = lerp(0.6, 1.35, bp), c0 = center(r0);
+        lift('s7-inserted', badge, [c0[0] - (r0[2] * k) / 2, c0[1] - (r0[3] * k) / 2, r0[2] * k, r0[3] * k], 8, bp);
+      }
+    }
+  },
+
+  /* 7c — PDF pages fan out like a hand of cards, then the scores page comes to the front */
+  pdf(t, s) {
+    stage();
+    const pages = ['s7-pdf-1', 's7-pdf-2', 's7-pdf-3'];
+    const fan = P(t, s.start + 0.1, 1.0, back), front = P(t, s.cues.front, 0.9, io);
+    const order = [0, 2, 1];
+    for (const i of order) {
+      const im = IMG.get(pages[i]), pw = 560, ph = (im.height / im.width) * pw;
+      const ang = (i - 1) * 0.16 * fan, dx = (i - 1) * 380 * fan;
+      let x = W / 2 + dx, y = 590 + (1 - fan) * 500 + Math.abs(i - 1) * 30 * fan, sc = 1, rot = ang;
+      if (i === 1) {
+        x = lerp(x, W / 2, front);
+        y = lerp(y, 640, front);
+        sc = lerp(1, 1.32, front);
+        rot = lerp(ang, 0, front);
+      }
+      withAlpha(i === 1 ? 1 : 1 - front * 0.6, () =>
+        around(x, y, sc, rot, () => {
+          g.save();
+          shadow(50, 20, 0.6);
+          g.fillStyle = '#fff';
+          g.fillRect(x - pw / 2, y - ph / 2, pw, ph);
+          g.restore();
+          g.drawImage(im, x - pw / 2, y - ph / 2, pw, ph);
+        }),
+      );
+    }
+    withAlpha(P(t, s.cues.front + 0.5, 0.5), () => tag(W / 2 + 400, 260, 'układ urzędowego wzoru · Arkusz B', '#111', '#fff', `600 26px ${F.body}`));
+  },
+
+  /* 8 — HR: a band runs over the statuses; reminder → envelope flies, counter +1; the sheet gets redacted, lock */
+  hr(t, s) {
+    stage();
+    const table = box(s, 'table'), rem = box(s, 'remind');
+    const c = s.cues;
+    const m = app('s8-hr', camAt(t, [[s.start, 1, 960, 540], [c.click - 0.8, 1.08, ...center(table)]]));
+    const sp = c01((t - c.sweep) / 1.6);
+    if (sp > 0 && sp < 1) {
+      const r = m.box(table), y = lerp(r[1], r[1] + r[3], io(sp));
+      const gr = g.createLinearGradient(0, y - 60, 0, y + 60);
+      gr.addColorStop(0, 'rgba(61,107,255,0)');
+      gr.addColorStop(0.5, 'rgba(61,107,255,.22)');
+      gr.addColorStop(1, 'rgba(61,107,255,0)');
+      g.fillStyle = gr;
+      g.fillRect(r[0], y - 60, r[2], 120);
+    }
+    const [rx, ry] = center(m.box(rem));
+    pointer(t, [[c.sweep + 0.8, rx - 400, ry + 300], [c.click - 0.15, rx, ry]], [c.click]);
+  },
+  remind(t, s) {
+    stage();
+    const d = box(s, 'dialog'), send = box(s, 'send');
+    const m = app('s8-reminder', camAt(t, [[s.start, 1.05, ...center(d)], [s.cues.click - 0.4, ...frameBox(d, 0.7, 1.5)]]));
+    const [sx, sy] = center(m.box(send));
+    pointer(t, [[s.start + 0.2, sx - 250, sy + 200], [s.cues.click - 0.15, sx, sy]], [s.cues.click]);
+  },
+  sent(t, s) {
+    stage();
+    const tile = box(s, 'tile');
+    const c = s.cues;
+    const red = P(t, c.redact, 0.7);
+    const m = app('s8-sent', [1.04, 960, 500], { blur: red, dim: red * 0.6 });
+    // envelope from the "Wyślij" button to the counter tile
+    const ep = c01((t - s.start) / 0.9);
+    const [tx, ty] = center(m.box(tile));
+    if (ep < 1) {
+      const x = lerp(W / 2 + 160, tx, io(ep)), y = lerp(720, ty, io(ep)) - Math.sin(ep * Math.PI) * 220;
+      around(x, y, lerp(1.2, 0.6, ep), lerp(-0.3, 0.2, ep), () => {
+        g.save();
+        shadow(20, 8, 0.4);
+        rr(x - 60, y - 40, 120, 80, 8);
+        g.fillStyle = '#fff';
+        g.fill();
+        g.restore();
+        g.beginPath();
+        g.moveTo(x - 60, y - 36);
+        g.lineTo(x, y + 8);
+        g.lineTo(x + 60, y - 36);
+        g.lineWidth = 4;
+        g.strokeStyle = C.accent;
+        g.stroke();
+      });
+    }
+    const bump = c01((t - s.start - 0.9) / 0.6);
+    if (bump > 0 && red < 1) {
+      const r0 = m.box(tile), k = 1 + Math.sin(bump * Math.PI) * 0.25, c0 = center(r0);
+      withAlpha(1 - red, () => {
+        lift('s8-sent', tile, [c0[0] - (r0[2] * k) / 2, c0[1] - (r0[3] * k) / 2, r0[2] * k, r0[3] * k], 12, Math.sin(bump * Math.PI));
+        withAlpha(1 - bump, () => txt('+1', c0[0] + r0[2] / 2 - 10, c0[1] - 60 - bump * 60, `64px ${F.head}`, C.accent, 'center'));
+      });
+    }
+    // the evaluation sheet HR never sees
+    if (red > 0) {
+      const x = W / 2 - 360, y = lerp(H + 40, 170, red), w = 720, h = 760;
+      g.save();
+      shadow(60, 24, 0.6);
+      rr(x, y, w, h, 14);
+      g.fillStyle = '#fbfbf8';
+      g.fill();
+      g.restore();
+      txt('ARKUSZ OCENY OKRESOWEJ', x + 50, y + 80, `30px ${F.head}`, '#111');
+      txt('Agnieszka Kaczmarek · Arkusz C', x + 50, y + 124, `400 24px ${F.body}`, '#6b6b70');
+      const rows = ['Oceny cząstkowe: 7 · 5 · 7 · 7 · 1 · 7 · 5 · 7', 'Średnia 5,75 — ocena negatywna', 'Uzasadnienie: Pani Agnieszka prawidłowo…', 'realizuje cele i zadania na stanowisku,', 'Wnioski do programu rozwoju zawodowego:', 'szkolenie z komunikacji pisemnej…'];
+      rows.forEach((row, i) => {
+        const ry = y + 200 + i * 78;
+        txt(row, x + 50, ry, `400 26px ${F.body}`, '#2a2a2a');
+        const bp = c01((t - c.bars - i * 0.1) / 0.35);
+        if (bp > 0) {
+          g.fillStyle = '#0a0a0a';
+          g.fillRect(x + 42, ry - 30, (w - 84) * io(bp), 40);
+        }
+      });
+      // padlock
+      const lk = P(t, c.lock, 0.5, back), close = P(t, c.lock + 0.35, 0.3);
+      if (lk > 0) {
+        const lx = x + w - 20, ly = y + 40;
+        around(lx, ly, lk, 0, () => {
+          g.save();
+          shadow(30, 10, 0.5);
+          rr(lx - 70, ly - 10, 140, 120, 16);
+          g.fillStyle = C.accent;
+          g.fill();
+          g.restore();
+          g.beginPath();
+          g.arc(lx, ly - 10 - (1 - close) * 30, 44, Math.PI, 0);
+          g.lineWidth = 16;
+          g.strokeStyle = C.accent;
+          g.stroke();
+          g.beginPath();
+          g.arc(lx, ly + 44, 12, 0, Math.PI * 2);
+          g.fillStyle = '#fff';
+          g.fill();
+        });
+      }
+      withAlpha(P(t, c.lock + 0.3, 0.5), () => tag(x + w + 70, y + 250, 'Kadry: tylko statusy i terminy', '#111', '#fff', `600 28px ${F.body}`));
+      withAlpha(P(t, c.rodo, 0.5), () => tag(x + w + 70, y + 330, 'RODO · minimalizacja danych', C.accent, '#fff', `600 28px ${F.body}`));
+    }
+  },
+
+  /* 9 — architecture built layer by layer; the light → dark wipe; Gemini slides out, a local model slides in */
+  stack(t, s) {
+    stage();
+    const c = s.cues;
+    txt('Gotowe do wdrożenia', 140, 120, `60px ${F.head}`, C.text);
+    const layers = [
+      [s.start + 0.2, 'Przeglądarka', 'desktop · WCAG 2.1 AA · jasny i ciemny motyw'],
+      [c.roles, 'Logowanie z rolami', 'przełożony · kierujący komórką · kadry'],
+      [c.offices, 'Wiele urzędów', 'dane rozdzielone regułami bazy'],
+      [c.offices + 0.45, 'Logika ocen w kodzie', 'testy · wynik zatwierdza serwer'],
+      [c.gemini - 0.6, 'Asystenci AI + baza wiedzy', 'cytaty sprawdzane w kodzie'],
+    ];
+    const lw = 820, lh = 92, x = 140, yb = 970;
+    layers.forEach(([at, title, sub], i) => {
+      const p = c01((t - at) / 0.6);
+      if (p <= 0) return;
+      const y = lerp(-200, yb - (i + 1) * (lh + 14), back(p));
+      paper(x, y, lw, lh, title, sub, { strip: C.accent, font: `600 32px ${F.body}` });
+    });
+    // model slot on top: Gemini today → local model in the office
+    const slotY = yb - 6 * (lh + 14) + 0, sp = P(t, c.gemini - 0.3, 0.6, back);
+    if (sp > 0) {
+      withAlpha(sp, () => {
+        g.setLineDash([10, 8]);
+        rr(x, slotY, lw, lh, 12);
+        g.lineWidth = 2;
+        g.strokeStyle = 'rgba(255,255,255,.35)';
+        g.stroke();
+        g.setLineDash([]);
+        txt('model językowy — wymienny', x + lw, slotY - 14, `italic 400 24px ${F.body}`, C.muted, 'right');
+      });
+      const swap = P(t, c.local, 0.8, io);
+      withAlpha(1 - swap, () => paper(x + swap * 900, slotY, lw, lh, 'Gemini 3.5 Flash-Lite', 'dziś · płatny, szybki · tylko z serwera', { bg: '#e9efff', strip: C.accent, font: `600 32px ${F.body}` }));
+      withAlpha(swap, () => paper(x - (1 - swap) * 900, slotY, lw, lh, 'Polski model, lokalnie w urzędzie', 'np. Bielik / PLLuM · dane nie opuszczają urzędu', { bg: '#e6f6ec', strip: C.green, font: `600 32px ${F.body}` }));
+    }
+    // monitor: the same dashboard, wiped from light to dark
+    const mx = 1060, my = 340, mw = 720, mh = 405;
+    const ma = P(t, s.start + 0.4, 0.7);
+    withAlpha(ma, () => {
+      g.save();
+      shadow(50, 20, 0.6);
+      rr(mx - 12, my - 12, mw + 24, mh + 24, 16);
+      g.fillStyle = '#1d222c';
+      g.fill();
+      g.restore();
+      g.drawImage(IMG.get('s9-light'), mx, my, mw, mh);
+      const wp = P(t, c.a11y, 1.2, io);
+      if (wp > 0) {
+        g.save();
+        const k = wp * (mw + mh);
+        g.beginPath();
+        g.moveTo(mx, my);
+        g.lineTo(mx + k, my);
+        g.lineTo(mx + k - mh, my + mh);
+        g.lineTo(mx, my + mh);
+        g.closePath();
+        g.clip();
+        g.drawImage(IMG.get('s9-dark'), mx, my, mw, mh);
+        g.restore();
+        if (wp < 1) {
+          g.save();
+          g.beginPath();
+          g.rect(mx, my, mw, mh);
+          g.clip();
+          g.beginPath();
+          g.moveTo(mx + wp * (mw + mh), my);
+          g.lineTo(mx + wp * (mw + mh) - mh, my + mh);
+          g.lineWidth = 6;
+          g.strokeStyle = C.accent2;
+          g.stroke();
+          g.restore();
+        }
+      }
+      withAlpha(P(t, c.a11y + 0.6, 0.5), () => tag(mx + mw / 2, my + mh + 40, 'WCAG 2.1 AA · jasny i ciemny motyw', '#fff', '#111', `600 26px ${F.body}`, 'center'));
+    });
+  },
+
+  /* end — the compass points north again; the line, the link */
+  end(t, s) {
+    stage();
+    const lt = t - s.start;
+    compass(W / 2, 260, 110, -1.4 * (1 - spring(lt * 0.9, 7, 3)), P(t, s.start, 0.5));
+    withAlpha(P(t, s.start + 0.2, 0.7), () => {
+      const y = 500 + (1 - P(t, s.start + 0.2, 0.7)) * 30;
+      txt('Kompas Kompetencji', W / 2, y, `110px ${F.head}`, C.text, 'center');
+      g.font = `110px ${F.head}`;
+      const w = g.measureText('Kompas Kompetencji').width;
+      g.fillStyle = C.accent;
+      g.fillRect(W / 2 + w / 2 + 10, y - 22, 22, 22);
+    });
+    withAlpha(P(t, s.cues.l1, 0.6), () => txt('Przepisów pilnuje system.', W / 2, 610, `400 48px ${F.body}`, C.muted, 'center'));
+    withAlpha(P(t, s.cues.l2, 0.6), () => txt('Decyzję podejmuje człowiek.', W / 2, 676, `600 48px ${F.body}`, C.text, 'center'));
+    withAlpha(P(t, s.cues.l2 + 1.2, 0.6), () => tag(W / 2, 750, 'kompaskompetencji.web.app', C.accent, '#fff', `600 36px ${F.mono}`, 'center'));
+    withAlpha(P(t, s.cues.l2 + 1.4, 0.6), () => txt('Prototyp · dane fikcyjne · HackNation 2026 · głos lektora: ElevenLabs', W / 2, 860, `400 26px ${F.body}`, C.muted, 'center'));
+    withAlpha(P(t, s.cues.l2 + 1.7, 0.6), () => txt('Przy tworzeniu oprogramowania wykorzystano narzędzia AI.', W / 2, 904, `400 26px ${F.body}`, C.muted, 'center'));
+  },
+};
+const box = (s, key) => FILM.boxes[s.img?.[s.boxesOf ?? 0]]?.[key];
+
+// ── process indicator (who + which step) ─────────────────────────────────────────────────────────────────────
+const HUD = { x: 162, y: 20, w: 880 };
+const HUD_SHEET_SLOT = () => [HUD.x + HUD.w - 150, HUD.y + 14, 128, 40];
+function hud(t, sh, prev, a) {
+  const h = sh.hud;
+  if (!h || a <= 0) return;
+  withAlpha(a, () => {
+    g.save();
+    shadow(30, 12, 0.45);
+    rr(HUD.x, HUD.y, HUD.w, h.step >= 0 ? 98 : 68, 16);
+    g.fillStyle = 'rgba(13,16,22,.92)';
+    g.fill();
+    g.restore();
+    txt(h.who, HUD.x + 28, HUD.y + 44, `600 28px ${F.body}`, C.text);
+    g.font = `600 28px ${F.body}`;
+    txt(h.path ?? 'ocena okresowa', HUD.x + 40 + g.measureText(h.who).width, HUD.y + 44, `400 24px ${F.body}`, C.muted);
+    if (h.sheet) {
+      const r = HUD_SHEET_SLOT();
+      rr(r[0], r[1], r[2], r[3], 10);
+      g.fillStyle = C.accent;
+      g.fill();
+      txt(h.sheet, r[0] + r[2] / 2, r[1] + r[3] / 2 + 1, `600 22px ${F.body}`, '#fff', 'center', 'middle');
+    }
+    if (h.step >= 0) {
+      const sw = (HUD.w - 56 - 4 * 10) / 5, y = HUD.y + 62;
+      const from = prev?.hud && prev.hud.who === h.who && prev.hud.step >= 0 ? prev.hud.step : h.step;
+      const pos = lerp(from, h.step, P(t, sh.start + 0.15, 0.7, io));
+      STEPS.forEach((n, i) => {
+        const x = HUD.x + 28 + i * (sw + 10);
+        const on = Math.max(0, 1 - Math.abs(pos - i));
+        g.fillStyle = i < pos - 0.5 ? 'rgba(61,107,255,.55)' : 'rgba(255,255,255,.14)';
+        g.fillRect(x, y, sw, 6);
+        if (on > 0) {
+          g.fillStyle = `rgba(124,155,255,${on})`;
+          g.fillRect(x, y, sw, 6);
+        }
+        txt(`${i + 1}. ${n}`, x, y + 25, `${on > 0.5 ? 600 : 400} 17px ${F.body}`, on > 0.5 ? C.text : C.muted);
+      });
+    }
+  });
+}
+
+// ── caption, subtitles ───────────────────────────────────────────────────────────────────────────────────────
+function caption(scene, t) {
+  if (!scene.caption) return;
+  const a = P(t, scene.start + 0.6, 0.6) * (1 - P(t, scene.end - 0.5, 0.35));
+  if (a <= 0) return;
+  withAlpha(a, () => {
+    g.font = `600 28px ${F.body}`;
+    const tw = g.measureText(scene.caption).width;
+    const h = 64, w = 96 + tw + 30, x = W - w - 162 + (1 - a) * 40, y = 20;
+    g.save();
+    shadow(30, 12, 0.45);
+    rr(x, y, w, h, 14);
+    g.fillStyle = 'rgba(13,16,22,.92)';
+    g.fill();
+    g.restore();
+    rr(x, y, 72, h, 14);
+    g.fillStyle = C.accent;
+    g.fill();
+    g.fillRect(x + 50, y, 22, h);
+    txt(scene.id, x + 36, y + h / 2 + 1, `600 26px ${F.mono}`, '#fff', 'center', 'middle');
+    txt(scene.caption, x + 96, y + h / 2 + 1, `600 28px ${F.body}`, C.text, 'left', 'middle');
+  });
+}
+function subtitle(sub, t) {
+  const a = P(t, sub.start - 0.05, 0.2) * (1 - c01((t - (sub.end - 0.12)) / 0.12));
+  if (a <= 0) return;
+  const font = `400 34px ${F.body}`, lines = wrap(sub.text, font, 1440), lh = 46, pad = 22;
+  g.font = font;
+  const w = Math.max(...lines.map((l) => g.measureText(l).width)) + pad * 2, h = lines.length * lh + pad * 1.1;
+  const x = (W - w) / 2, y = H - h - 40;
+  withAlpha(a, () => {
+    rr(x, y, w, h, 12);
+    g.fillStyle = 'rgba(8,10,14,.8)';
+    g.fill();
+    lines.forEach((l, i) => txt(l, W / 2, y + pad * 0.55 + lh * i + lh / 2 + 1, font, '#fff', 'center', 'middle'));
+  });
+}
+
+// ── transitions ──────────────────────────────────────────────────────────────────────────────────────────────
+const TRANS = {
+  cross: { d: 0.4, draw: (a, b, p) => { a(); asLayer(p, b); } },
+  iris: {
+    d: 0.9,
+    draw(a, b, p, sh) {
+      a();
+      const [x, y] = sh.irisAt ?? [W / 2, H / 2];
+      g.save();
+      g.beginPath();
+      g.arc(x, y, io(p) * 2300, 0, Math.PI * 2);
+      g.clip();
+      b();
+      g.restore();
+      if (p > 0 && p < 1) {
+        g.beginPath();
+        g.arc(x, y, io(p) * 2300, 0, Math.PI * 2);
+        g.lineWidth = 10;
+        g.strokeStyle = C.accent;
+        g.stroke();
+      }
+    },
+  },
+  'from-click': {
+    d: 0.6,
+    draw(a, b, p, sh, prev) {
+      POINTER_AT = null;
+      a();
+      const [x, y] = clickPoint();
+      const e = io(p);
+      g.save();
+      g.beginPath();
+      g.arc(x, y, e * 2300, 0, Math.PI * 2);
+      g.clip();
+      around(x, y, lerp(0.6, 1, e), 0, b);
+      g.restore();
+    },
+  },
+  'push-left': {
+    d: 0.8,
+    draw(a, b, p) {
+      const e = io(p);
+      g.save();
+      g.translate(-e * W, 0);
+      a();
+      g.translate(W, 0);
+      b();
+      g.restore();
+    },
+  },
+  'slide-up': {
+    d: 0.8,
+    draw(a, b, p) {
+      const e = io(p);
+      around(W / 2, H / 2, lerp(1, 0.9, e), 0, () => asLayer(1 - e * 0.7, a));
+      g.save();
+      g.translate(0, (1 - e) * H);
+      b();
+      g.restore();
+    },
+  },
+  blur: {
+    d: 0.9,
+    draw(a, b, p) {
+      g.save();
+      g.filter = `blur(${Math.sin(p * Math.PI) * 18}px)`;
+      a();
+      asLayer(io(p), b);
+      g.restore();
+    },
+  },
+  flip: {
+    d: 0.8,
+    draw(a, b, p) {
+      stage();
+      const first = p < 0.5, k = first ? 1 - io(p * 2) : io((p - 0.5) * 2);
+      g.save();
+      g.translate(W / 2, H / 2);
+      g.scale(Math.max(0.001, k), 1 - (1 - k) * 0.08);
+      g.translate(-W / 2, -H / 2);
+      (first ? a : b)();
+      g.restore();
+    },
+  },
+  wipe: {
+    d: 0.9,
+    draw(a, b, p) {
+      a();
+      const k = io(p) * (W + H);
+      g.save();
+      g.beginPath();
+      g.moveTo(0, 0);
+      g.lineTo(k, 0);
+      g.lineTo(k - H, H);
+      g.lineTo(0, H);
+      g.closePath();
+      g.clip();
+      b();
+      g.restore();
+      if (p > 0 && p < 1) {
+        g.beginPath();
+        g.moveTo(k, 0);
+        g.lineTo(k - H, H);
+        g.lineWidth = 12;
+        g.strokeStyle = C.accent;
+        g.stroke();
+      }
+    },
+  },
+  'zoom-out': {
+    d: 0.9,
+    draw(a, b, p) {
+      const e = io(p);
+      b();
+      asLayer(1 - e, () => around(W / 2, H / 2, lerp(1, 0.55, e), lerp(0, -0.08, e), a));
+    },
+  },
+  'zoom-through': {
+    d: 0.8,
+    draw(a, b, p) {
+      const e = io(p);
+      asLayer(1 - e, () => around(W / 2, H / 2, lerp(1, 1.8, e), 0, a));
+      asLayer(e, () => around(W / 2, H / 2, lerp(0.9, 1, e), 0, b));
+    },
+  },
+};
+/** Frame position of the last click of the previous shot (recorded while it was drawn in this frame). */
+function clickPoint() {
+  return POINTER_AT ?? [W / 2, H / 2];
+}
+
+// ── frame ────────────────────────────────────────────────────────────────────────────────────────────────────
+function drawShot(sh, t) {
+  g.save();
+  FX[sh.fx](t, sh);
+  g.restore();
+}
+function frame(t) {
+  const shots = FILM.shots;
+  g = MAIN;
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  stage(); // transitions that shrink a shot must not reveal the previous frame underneath
+  let i = shots.findIndex((s) => t >= s.start && t < s.end);
+  if (i < 0) i = t < shots[0].start ? 0 : shots.length - 1;
+  const cur = shots[i];
+  // transition window around the boundary with the previous / next shot
+  const prev = shots[i - 1], next = shots[i + 1];
+  const tin = cur.trans ? TRANS[cur.trans] : TRANS.cross;
+  const tnext = next ? (next.trans ? TRANS[next.trans] : TRANS.cross) : null;
+  g.save();
+  if (prev && t < cur.start + tin.d / 2) {
+    const p = (t - (cur.start - tin.d / 2)) / tin.d;
+    tin.draw(() => drawShot(prev, t), () => drawShot(cur, t), c01(p), cur, prev);
+  } else if (next && t > next.start - tnext.d / 2) {
+    const p = (t - (next.start - tnext.d / 2)) / tnext.d;
+    tnext.draw(() => drawShot(cur, t), () => drawShot(next, t), c01(p), next, cur);
+  } else drawShot(cur, t);
+  g.restore();
+
+  // overlays: process indicator, caption, subtitles
+  const prevHud = prev?.hud ? prev : null;
+  const ha = cur.hud ? Math.min(P(t, cur.start - 0.2, 0.5), next?.hud ? 1 : 1 - P(t, cur.end - 0.45, 0.35)) : 0;
+  const hudA = cur.hud && prevHud ? (next?.hud ? 1 : 1 - P(t, cur.end - 0.45, 0.35)) : ha;
+  hud(t, cur, prevHud, hudA);
+  const scene = FILM.scenes.find((s) => t >= s.start && t < s.end) ?? FILM.scenes.at(-1);
+  if (cur.fx !== 'end' && cur.fx !== 'intro') caption(scene, t);
+  for (const sc of FILM.scenes) {
+    const sub = sc.sentences.find((s) => t >= s.start && t < s.end);
+    if (sub) subtitle(sub, t);
+  }
+  const black = Math.max(0, 1 - t / 0.5, 1 - (FILM.duration - t) / 1.2);
+  if (black > 0) {
+    g.fillStyle = `rgba(0,0,0,${black})`;
+    g.fillRect(0, 0, W, H);
+  }
+}
+
+async function load() {
+  const names = [...new Set(FILM.shots.flatMap((s) => s.img ?? []).concat(FILM.extraImages ?? []))];
+  await Promise.all(
+    names.map((n) => new Promise((ok, fail) => {
+      const im = new Image();
+      im.onload = () => {
+        IMG.set(n, im);
+        ok();
+      };
+      im.onerror = () => fail(new Error('missing ' + n));
+      im.src = `/kadry/${n}.png`;
+    })),
+  );
+  for (const f of [`400 34px ${F.body}`, `600 34px ${F.body}`, `italic 400 34px ${F.body}`, `italic 600 34px ${F.body}`, `40px ${F.head}`, `400 24px ${F.mono}`, `600 24px ${F.mono}`])
+    await document.fonts.load(f, 'ąęłńóśźżĄĘŁŃÓŚŹŻ');
+  STAGE = makeStage();
+}
+
+window.preview = async (t) => {
+  if (!STAGE) {
+    FILM = window.FILM;
+    await load();
+  }
+  frame(t);
+  return true;
+};
+window.frameAt = async (t, type = 'image/png') => {
+  await window.preview(t);
+  return cv.toDataURL(type);
+};
+</script>
+</body>
+</html>
